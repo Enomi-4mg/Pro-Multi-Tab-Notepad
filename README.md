@@ -45,9 +45,7 @@ pip install customtkinter
 python my_notepad_app.py
 ```
 
----
-
-⌨️ ショートカットキー
+## ⌨️ ショートカットキー
 
 |キー組合せ|機能|
 |Ctrl + N|新規タブの作成|
@@ -59,42 +57,34 @@ python my_notepad_app.py
 |Ctrl + G|罫線（グリッド）の表示/非表示を切り替え|
 |Ctrl + H|現在行ハイライトの有効/無効を切り替え|
 
----
-
-⚙️ 設定オプション
+## ⚙️ 設定オプション
 設定画面（Ctrl + ,）から以下の項目を自由にカスタマイズし、即座に反映させることができます。
 
-外観: ライトモード / ダークモード。
+- 外観: ライトモード / ダークモード。
 
-エディタ: フォントサイズ変更、各種視覚ガイド（行番号・罫線・強調）の ON/OFF。
+- エディタ: フォントサイズ変更、各種視覚ガイド（行番号・罫線・強調）の ON/OFF。
 
-ファイル: デフォルトの保存先ディレクトリ。
+- ファイル: デフォルトの保存先ディレクトリ。
 
-言語: 日本語 / 英語。
+- 言語: 日本語 / 英語。
 
----
-
-📁 専用フォルダについて
+## 📁 専用フォルダについて
 初回起動時に、利便性のために以下のディレクトリが自動的に作成され、デフォルトの保存先として設定されます。
 
 パス: ~/ProMultiTabNotepad (ユーザーホームディレクトリ内)
 
----
-
-🛠 開発者向け情報
+## 🛠 開発者向け情報
 このアプリは Mixin パターン を採用しており、機能ごとに独立したクラスで構成されています。
 
-TabOperationsMixin: タブ操作（追加・削除・切替）。
+- TabOperationsMixin: タブ操作（追加・削除・切替）。
 
-FileOperationsMixin: ファイル I/O。
+- FileOperationsMixin: ファイル I/O。
 
-SearchOperationsMixin: 検索 UI およびロジック。
+- SearchOperationsMixin: 検索 UI およびロジック。
 
-SettingsOperationsMixin: 設定値の管理と UI 制御。
+- SettingsOperationsMixin: 設定値の管理と UI 制御。
 
----
-
-📄 ライセンス
+## 📄 ライセンス
 このプロジェクトは MIT License のもとで公開されています。
 
 Produced with passion for clean coding.
