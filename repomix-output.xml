@@ -1,4 +1,181 @@
-VERSION = "1.3.0"
+This file is a merged representation of the entire codebase, combined into a single document by Repomix.
+
+<file_summary>
+This section contains a summary of this file.
+
+<purpose>
+This file contains a packed representation of the entire repository's contents.
+It is designed to be easily consumable by AI systems for analysis, code review,
+or other automated processes.
+</purpose>
+
+<file_format>
+The content is organized as follows:
+1. This summary section
+2. Repository information
+3. Directory structure
+4. Repository files (if enabled)
+5. Multiple file entries, each consisting of:
+  - File path as an attribute
+  - Full contents of the file
+</file_format>
+
+<usage_guidelines>
+- This file should be treated as read-only. Any changes should be made to the
+  original repository files, not this packed version.
+- When processing this file, use the file path to distinguish
+  between different files in the repository.
+- Be aware that this file may contain sensitive information. Handle it with
+  the same level of security as you would the original repository.
+</usage_guidelines>
+
+<notes>
+- Some files may have been excluded based on .gitignore rules and Repomix's configuration
+- Binary files are not included in this packed representation. Please refer to the Repository Structure section for a complete list of file paths, including binary files
+- Files matching patterns in .gitignore are excluded
+- Files matching default ignore patterns are excluded
+- Files are sorted by Git change count (files with more changes are at the bottom)
+</notes>
+
+</file_summary>
+
+<directory_structure>
+.github/workflows/release.yml
+build.bat
+icon/icon-win.gfie
+icon/icon-win.ico
+icon/icon.gfie
+my_notepad_app.py
+my_notepad_app.spec
+README.md
+requirements.txt
+</directory_structure>
+
+<files>
+This section contains the contents of the repository's files.
+
+<file path="build.bat">
+@echo off
+pip install -r requirements.txt
+pyinstaller --noconfirm --onedir --windowed --icon "icon/icon-win.ico" "my_notepad_app.py"
+pause
+</file>
+
+<file path="my_notepad_app.spec">
+# -*- mode: python ; coding: utf-8 -*-
+
+
+a = Analysis(
+    ['my_notepad_app.py'],
+    pathex=[],
+    binaries=[],
+    datas=[],
+    hiddenimports=[],
+    hookspath=[],
+    hooksconfig={},
+    runtime_hooks=[],
+    excludes=[],
+    noarchive=False,
+    optimize=0,
+)
+pyz = PYZ(a.pure)
+
+exe = EXE(
+    pyz,
+    a.scripts,
+    [],
+    exclude_binaries=True,
+    name='my_notepad_app',
+    debug=False,
+    bootloader_ignore_signals=False,
+    strip=False,
+    upx=True,
+    console=False,
+    disable_windowed_traceback=False,
+    argv_emulation=False,
+    target_arch=None,
+    codesign_identity=None,
+    entitlements_file=None,
+    icon=['icon\\icon-win.ico'],
+)
+coll = COLLECT(
+    exe,
+    a.binaries,
+    a.datas,
+    strip=False,
+    upx=True,
+    upx_exclude=[],
+    name='my_notepad_app',
+)
+</file>
+
+<file path=".github/workflows/release.yml">
+name: Build and Release
+
+on:
+  push:
+    tags:
+      - 'v*' # v1.1.1 などのタグがプッシュされたときに実行
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+    
+    permissions:
+        contents: write
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pyinstaller
+
+      - name: Clean build directories
+        run: |
+          if (Test-Path dist) { Remove-Item -Recurse -Force dist }
+          if (Test-Path build) { Remove-Item -Recurse -Force build }
+        shell: powershell
+      
+      - name: Build with PyInstaller
+        run: |
+          # 既存の .spec ファイルを使用してビルド
+          python -m PyInstaller --noconfirm my_notepad_app.spec
+
+      - name: Archive build artifacts
+        # --onedir 形式のため、生成されたフォルダを ZIP 圧縮します
+        shell: powershell
+        run: |
+          Compress-Archive -Path dist/my_notepad_app/* -DestinationPath ProMultiTabNotepad_Win.zip
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: ProMultiTabNotepad_Win.zip
+          generate_release_notes: true # 前回のタグからの差分を自動生成
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+</file>
+
+<file path="requirements.txt">
+customtkinter==5.2.2
+darkdetect==0.8.0
+packaging==25.0
+requests==2.31.0
+markdown2==2.4.13
+</file>
+
+<file path="my_notepad_app.py">
+VERSION = "1.2.0"
 
 import customtkinter as ctk
 from tkinter import filedialog, messagebox, Canvas
@@ -52,8 +229,6 @@ class I18n:
             "version_label": "バージョン: {version}",
             "preview": "プレビュー",
             "markdown_preview": "Markdownプレビュー (ブラウザ)",
-            "preview_settings": "プレビュー設定",
-            "preview_interval": "自動更新の間隔 (秒)",
         },
         "en": {
             "new_file": "New",
@@ -89,8 +264,6 @@ class I18n:
             "version_label": "Version: {version}",
             "preview": "Preview",
             "markdown_preview": "Markdown Preview (Browser)",
-            "preview_settings": "Preview Settings",
-            "preview_interval": "Update Interval (sec)",
         }
     }
 
@@ -118,8 +291,7 @@ class AppConfig:
         "show_grid": False,
         "show_current_line": True,
         "default_dir": APP_DIR_PATH, # 専用ディレクトリを初期値に設定
-        "preview_interval": 5,
-        "lang": "ja",
+        "lang": "ja"
     }
     
     COLORS = {
@@ -160,50 +332,6 @@ class AppConfig:
     GITHUB_USER = "EnoMi-4mg" # 書き換えてください
     REPO_NAME = "Pro-Multi-Tab-Notepad"
     GITHUB_API_URL = f"https://api.github.com/repos/{GITHUB_USER}/{REPO_NAME}/releases/latest"
-
-class CTkToolTip:
-    """ボタンホバー時にショートカットキーを表示する簡易ツールチップ"""
-    def __init__(self, widget, text):
-        self.widget = widget
-        self.text = text
-        self.tooltip_window = None
-        self._after_id = None
-        self.widget.bind("<Enter>", self.show_delayed)
-        self.widget.bind("<Leave>", self.hide_tooltip)
-
-    def show_delayed(self, event=None):
-        if self._after_id: self.widget.after_cancel(self._after_id)
-        self._after_id = self.widget.after(300, self.show_tooltip)
-
-    def show_tooltip(self, event=None):
-        if self.tooltip_window or not self.text: return
-        try:
-            x = self.widget.winfo_rootx() + (self.widget.winfo_width() // 2)
-            y = self.widget.winfo_rooty() + self.widget.winfo_height() + 5
-            
-            self.tooltip_window = tw = ctk.CTkToplevel(self.widget)
-            tw.wm_overrideredirect(True)
-            tw.wm_geometry(f"+{x}+{y}")
-            tw.attributes("-topmost", True)
-            tw.attributes("-alpha", 0.9)
-            
-            label = ctk.CTkLabel(tw, text=self.text, fg_color=("#333333", "#444444"), 
-                                 text_color="white", corner_radius=4, padx=8, pady=4, 
-                                 font=("Segoe UI", 10, "bold"))
-            label.pack()
-        except:
-            self.hide_tooltip()
-
-    def hide_tooltip(self, event=None):
-        if self._after_id:
-            self.widget.after_cancel(self._after_id)
-            self._after_id = None
-        if self.tooltip_window:
-            try:
-                self.tooltip_window.destroy()
-            except:
-                pass
-            self.tooltip_window = None
 
 # ==========================================
 # 3. シンタックスハイライター
@@ -649,19 +777,6 @@ class SettingsOperationsMixin:
         self.cur_line_row = self._create_setting_row("show_current_line")
         self.cur_line_switch = ctk.CTkSwitch(self.cur_line_row, text="", variable=self.cur_line_var)
         self.cur_line_switch.pack(side="right")
-        
-        # プレビュー設定セクション
-        self.preview_section = self._create_section_label("preview_settings")
-        self.interval_row = self._create_setting_row("preview_interval")
-        
-        # スライダー (1秒〜60秒)
-        self.interval_slider = ctk.CTkSlider(self.interval_row, from_=1, to=60, number_of_steps=59)
-        self.interval_slider.set(AppConfig.settings["preview_interval"])
-        self.interval_slider.pack(side="right", padx=10)
-        
-        self.interval_label = ctk.CTkLabel(self.interval_row, text=f"{AppConfig.settings['preview_interval']}s")
-        self.interval_label.pack(side="right")
-        self.interval_slider.configure(command=lambda v: self.interval_label.configure(text=f"{int(v)}s"))
 
         # ファイル設定
         self.file_section = self._create_section_label("file_settings")
@@ -761,7 +876,6 @@ class SettingsOperationsMixin:
         AppConfig.settings["show_current_line"] = self.cur_line_var.get()
         AppConfig.settings["default_dir"] = self.dir_path_var.get()
         AppConfig.settings["lang"] = self.lang_var.get()
-        AppConfig.settings["preview_interval"] = int(self.interval_slider.get())
 
         ctk.set_appearance_mode(AppConfig.settings["appearance"])
         for tab in self.tabs.values():
@@ -779,10 +893,7 @@ class SettingsOperationsMixin:
 class MultiTabApp(ctk.CTk, TabOperationsMixin, FileOperationsMixin, SearchOperationsMixin, SettingsOperationsMixin):
     def __init__(self):
         super().__init__()
-        # --- 変数の初期化 ---
-        self.preview_file = None 
-        
-        self._ensure_app_directory()
+        self._ensure_app_directory() # 専用ディレクトリの作成
         self.init_tab_system()
         self._setup_window()
         self._create_widgets()
@@ -791,10 +902,6 @@ class MultiTabApp(ctk.CTk, TabOperationsMixin, FileOperationsMixin, SearchOperat
         self._setup_bindings()
         self._check_empty_state()
         self.update_ui_texts()
-        
-        # 10秒ごとの自動プレビュー更新ループ開始
-        self._setup_auto_preview()
-        
         self.after(2000, self.check_for_updates)
 
     def _ensure_app_directory(self):
@@ -818,16 +925,15 @@ class MultiTabApp(ctk.CTk, TabOperationsMixin, FileOperationsMixin, SearchOperat
         self.toolbar = ctk.CTkFrame(self, height=40, corner_radius=0, fg_color=AppConfig.COLORS["toolbar_bg"])
         self.toolbar.grid(row=0, column=0, sticky="ew")
         
-        self.btn_new = self._add_toolbar_button("new_file", self.add_new_tab, "Ctrl+N")
-        self.btn_open = self._add_toolbar_button("open_file", self.open_file, "Ctrl+O")
-        self.btn_save = self._add_toolbar_button("save_file", self.save_file, "Ctrl+S")
-        self.btn_find = self._add_toolbar_button("find", self.toggle_search, "Ctrl+F")
-        self.btn_preview = self._add_toolbar_button("preview", self.preview_markdown, "Ctrl+Shift+P")
+        self.btn_new = self._add_toolbar_button("new_file", self.add_new_tab)
+        self.btn_open = self._add_toolbar_button("open_file", self.open_file)
+        self.btn_save = self._add_toolbar_button("save_file", self.save_file)
+        self.btn_find = self._add_toolbar_button("find", self.toggle_search)
         
+        self.btn_preview = self._add_toolbar_button("preview", self.preview_markdown)
         self.btn_settings = ctk.CTkButton(self.toolbar, text="", width=80, height=30, fg_color="transparent", 
                                           text_color=AppConfig.COLORS["text_active"], command=self.toggle_settings)
         self.btn_settings.pack(side="right", padx=10, pady=5)
-        CTkToolTip(self.btn_settings, "Ctrl+,")
 
         self.tab_bar = ctk.CTkScrollableFrame(self, height=35, orientation="horizontal", 
                                              fg_color=AppConfig.COLORS["tabbar_bg"], corner_radius=0)
@@ -856,13 +962,11 @@ class MultiTabApp(ctk.CTk, TabOperationsMixin, FileOperationsMixin, SearchOperat
         self.status_label_right = ctk.CTkLabel(self.status_bar, text="", font=("Segoe UI", 11))
         self.status_label_right.pack(side="right", padx=15)
 
-    def _add_toolbar_button(self, key, command, shortcut_text=""):
+    def _add_toolbar_button(self, key, command):
         btn = ctk.CTkButton(self.toolbar, text=AppConfig.t(key), width=70, height=30, fg_color="transparent", 
                             text_color=AppConfig.COLORS["text_active"], command=command)
         btn.pack(side="left", padx=5, pady=5)
         btn.key = key
-        if shortcut_text:
-            CTkToolTip(btn, shortcut_text)
         return btn
 
     def update_ui_texts(self):
@@ -883,10 +987,6 @@ class MultiTabApp(ctk.CTk, TabOperationsMixin, FileOperationsMixin, SearchOperat
         self.bind_all("<Control-s>", lambda e: self.save_file() or "break")
         self.bind_all("<Control-f>", self.toggle_search)
         self.bind_all("<Control-comma>", lambda e: self.toggle_settings())
-        # ショートカットキーを修正
-        self.bind_all("<Control-Shift-P>", lambda e: self.preview_markdown() or "break")
-        self.bind_all("<Control-Shift-p>", lambda e: self.preview_markdown() or "break")
-        
         self.bind_all("<Control-l>", lambda e: self.toggle_line_numbers_global())
         self.bind_all("<Control-g>", lambda e: self.toggle_grid_global())
         self.bind_all("<Control-h>", lambda e: self.toggle_current_line_global())
@@ -938,100 +1038,87 @@ class MultiTabApp(ctk.CTk, TabOperationsMixin, FileOperationsMixin, SearchOperat
         else:
             self.welcome_frame.place_forget()
             self.tab_bar.grid()
-    
-    def _setup_auto_preview(self):
-        """バックグラウンドでHTMLファイルを更新し続ける"""
-        self.save_preview_html()
-        interval_ms = AppConfig.settings.get("preview_interval", 5) * 1000
-        self.after(interval_ms, self._setup_auto_preview)
-    
-    def save_preview_html(self):
-        """現在の内容を一時ファイルに上書き保存する（ブラウザは開かない）"""
-        if not self.current_tab_id or self.current_tab_id not in self.tabs:
-            return None
+            
+    def preview_markdown(self):
+        if not self.current_tab_id: return
         
         tab = self.tabs[self.current_tab_id]
         content = tab["editor"].get("1.0", "end-1c")
 
-        # --- 数式・化学式保護ロジック ---
+        # --- 数式保護ロジックの最強化版 ---
         math_blocks = []
         def save_math(match):
             placeholder = f"@@MATH{len(math_blocks)}@@"
             math_blocks.append(match.group(0))
             return placeholder
 
-        # 正規表現：$$, $, \begin{}, \ce{} を保護
+        # 優先順位：1. ブロック数式($$) 2. 環境(\begin) 3. 化学式(\ce) 4. インライン($)
+        # re.DOTALL で複数行を、re.MULTILINE は不要だが一応フラグを意識
+        # # my_notepad_app.py 内の正規表現修正版
         pattern = r'(\$\$.*?\$\$|\\begin\{.*?\}.*?\\end\{.*?\}|\\ce\{.*?\}|\$.*?\$)'
         content_protected = re.sub(pattern, save_math, content, flags=re.DOTALL)
-        
-        # 変数名を html_body に統一
-        html_body = markdown2.markdown(content_protected, extras=["fenced-code-blocks", "tables", "task_lists"])
 
-        # 保護していた数式を復元
+        # Markdown変換（数式が @@MATH...@@ に置き換わった状態で実行）
+        html_content = markdown2.markdown(content_protected, extras=["fenced-code-blocks", "tables", "task_lists"])
+
+        # 変換後に数式を「生の状態」で戻す
         for i, block in enumerate(math_blocks):
-            html_body = html_body.replace(f"@@MATH{i}@@", block)
+            html_content = html_content.replace(f"@@MATH{i}@@", block)
 
-        # UI設定に基づいた配色
         is_dark = ctk.get_appearance_mode() == "Dark"
         bg_color = "#1a1a1a" if is_dark else "white"
         text_color = "#e0e0e0" if is_dark else "black"
-        
-        interval_sec = AppConfig.settings.get("preview_interval", 5)
 
+        # --- 解決策2：MathJax設定の最適化 ---
         full_html = f"""
         <!DOCTYPE html>
         <html>
         <head>
             <meta charset="utf-8">
             <script>
-                // ブラウザ側のリロード間隔も設定値に同期
-                setInterval(() => {{ location.reload(); }}, {interval_sec * 1000});
-                
-                // スクロール位置の維持ロジック (UX向上)
-                window.onbeforeunload = function() {{ localStorage.setItem('scrollPos', window.scrollY); }};
-                window.onload = function() {{
-                    if (localStorage.getItem('scrollPos')) 
-                        window.scrollTo(0, parseInt(localStorage.getItem('scrollPos')));
-                }};
-                
-                window.MathJax = {{
-                  tex: {{
-                    inlineMath: [['$', '$'], ['\\\\(', '\\\\)']],
-                    displayMath: [['$$', '$$'], ['\\\\[', '\\\\]']],
-                    processEscapes: true
-                  }},
-                  loader: {{ load: ['[tex]/mhchem'] }}
-                }};
+            window.MathJax = {{
+              tex: {{
+                inlineMath: [['$', '$'], ['\\\\(', '\\\\)']],
+                displayMath: [['$$', '$$'], ['\\\\[', '\\\\]']],
+                processEscapes: true,
+                packages: {{'[base]': ['base'], 'mhchem': ['mhchem']}} // 明示的に base と mhchem を指定
+              }},
+              loader: {{
+                load: ['[tex]/mhchem']
+              }}
+            }};
             </script>
             <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
             <style>
-                body {{ background-color: {bg_color}; color: {text_color}; font-family: sans-serif; line-height: 1.7; max-width: 850px; margin: 0 auto; padding: 40px; }}
+                body {{ 
+                    background-color: {bg_color}; color: {text_color}; 
+                    font-family: -apple-system, sans-serif; line-height: 1.7; 
+                    max-width: 850px; margin: 0 auto; padding: 40px; 
+                }}
                 h1 {{ border-bottom: 2px solid #569CD6; padding-bottom: 10px; }}
+                code {{ background: rgba(150,150,150,0.1); padding: 2px 5px; border-radius: 4px; }}
                 pre {{ background: #2b2b2b; color: #f8f8f2; padding: 15px; border-radius: 8px; overflow-x: auto; }}
                 .MathJax {{ font-size: 1.1em !important; }}
+                /* 数式ブロックの上下に余白を作る */
+                .MathJax_Display {{
+                    margin: 2em 0 !important;
+                }}
+                /* 行列などが画面端に寄らないように調整 */
+                mjx-container[display="true"] {{
+                    margin: 1.5em 0 !important;
+                    overflow-x: auto;
+                    overflow-y: hidden;
+                }}
             </style>
         </head>
-        <body>{html_body}</body>
+        <body>{html_content}</body>
         </html>
         """
         
-        if self.preview_file is None:
-            temp = tempfile.NamedTemporaryFile(delete=False, suffix=".html", mode="w", encoding="utf-8")
-            self.preview_file = temp
-            temp.close()
-        
-        try:
-            with open(self.preview_file.name, "w", encoding="utf-8") as f:
-                f.write(full_html)
-            return self.preview_file.name
-        except:
-            return None
-    
-    def preview_markdown(self):
-        """手動でプレビューをブラウザに表示する"""
-        path = self.save_preview_html()
-        if path:
-            webbrowser.open(f"file://{path}")
+        with tempfile.NamedTemporaryFile(delete=False, suffix=".html", mode="w", encoding="utf-8") as f:
+            f.write(full_html)
+            temp_path = f.name
+        webbrowser.open(f"file://{temp_path}")
 
     def _setup_window(self):
         # タイトルにバージョンを表示
@@ -1077,3 +1164,109 @@ if __name__ == "__main__":
         app.mainloop()
     except KeyboardInterrupt:
         pass
+</file>
+
+<file path="README.md">
+# Pro Multi-Tab Notepad
+
+![Python](https://img.shields.io/badge/Python-3.8+-blue.svg)
+![CustomTkinter](https://img.shields.io/badge/UI-CustomTkinter-orange.svg)
+![License](https://img.shields.io/badge/License-MIT-green.svg)
+
+Pro Multi-Tab Notepad は、Python と CustomTkinter を使用して構築された、モダンで高機能なマルチタブ型テキストエディタです。
+シンプルなテキスト編集から、プログラミング（Python, HTML, CSS, JavaScript）や Markdown の作成・プレビューまで幅広く対応しています。
+
+---
+
+## 🌟 主な特徴
+
+- **モダンな UI**: ダークモード/ライトモードを完全サポートした洗練されたデザイン。
+- **マルチタブ管理**: 複数のファイルを同時に開き、快適に切り替えて作業できます。
+- **強力な Markdown 支援**:
+  - **プレビュー機能**: 編集モードとプレビューモードをワンクリックで切り替え可能。
+  - 見出し、太字、コードブロックなどの視覚的なレンダリングに対応。
+- **コーディング支援**:
+  - **シンタックスハイライト**: Python, HTML, CSS, JS, Markdown に対応。
+  - **行番号表示**: リアルタイムで更新される行番号エリア。
+  - **グリッド表示**: 水平・垂直のガイド線（罫線）を表示可能。
+  - **現在行強調**: カーソル行をハイライトし、視認性を向上。
+- **検索機能**: リアルタイムハイライトと前後へのナビゲーション。
+- **多言語対応 (i18n)**: 日本語と英語の UI 切り替えに対応。
+- **自動ディレクトリ作成**: ユーザーのホームディレクトリに専用の保存フォルダを自動作成。
+
+## 🚀 はじめかた
+
+### 1. 動作環境
+- Python 3.8 以上
+
+### 2. ライブラリのインストール
+ターミナルまたはコマンドプロンプトで以下のコマンドを実行してください。
+
+```bash
+pip install customtkinter
+```
+
+### 3. アプリの起動
+
+メインスクリプトを実行します。
+
+```bash
+python my_notepad_app.py
+```
+
+## ⌨️ ショートカットキー
+
+| キー組合せ | 機能 |
+| :-------: | :---: |
+| Ctrl + N | 新規タブの作成 |
+| Ctrl + O | ファイルを開く |
+| Ctrl + S | ファイルを保存 |
+| Ctrl + F | 検索パネルの表示/非表示 |
+| Ctrl + , |設定画面の表示/非表示 |
+| Ctrl + L |行番号の表示/非表示を切り替え |
+| Ctrl + G |罫線（グリッド）の表示/非表示を切り替え |
+| Ctrl + H |現在行ハイライトの有効/無効を切り替え |
+
+## ⚙️ 設定オプション
+設定画面（Ctrl + ,）から以下の項目を自由にカスタマイズし、即座に反映させることができます。
+
+- 外観: ライトモード / ダークモード。
+
+- エディタ: フォントサイズ変更、各種視覚ガイド（行番号・罫線・強調）の ON/OFF。
+
+- ファイル: デフォルトの保存先ディレクトリ。
+
+- 言語: 日本語 / 英語。
+
+## 📁 専用フォルダについて
+初回起動時に、利便性のために以下のディレクトリが自動的に作成され、デフォルトの保存先として設定されます。
+
+パス: ~/ProMultiTabNotepad (ユーザーホームディレクトリ内)
+
+## 🛠 開発者向け情報
+このアプリは Mixin パターン を採用しており、機能ごとに独立したクラスで構成されています。
+
+- TabOperationsMixin: タブ操作（追加・削除・切替）。
+
+- FileOperationsMixin: ファイル I/O。
+
+- SearchOperationsMixin: 検索 UI およびロジック。
+
+- SettingsOperationsMixin: 設定値の管理と UI 制御。
+
+### バージョン番号
+バージョン番号は X.Y.Z （例：1.1.2）の形式で表し、それぞれの数字に明確な意味を持たせます。
+
+|項目|呼び方|更新するタイミング|例|
+|:---:|:---:|:---:|:---:|
+|X|メジャー (Major)|互換性のない 大幅な変更。使い方がガラッと変わる時。|1.1.2 → 2.0.0
+|Y|マイナー (Minor)|互換性を保ちつつ、新機能を追加した時。|1.1.2 → 1.2.0
+|Z|パッチ (Patch)|互換性を保ちつつ、バグ修正や細かな調整をした時。|1.1.2 → 1.1.3
+
+## 📄 ライセンス
+このプロジェクトは MIT License のもとで公開されています。
+
+Produced with passion for clean coding.
+</file>
+
+</files>
