@@ -40,15 +40,16 @@ jobs:
           python -m PyInstaller --noconfirm my_notepad_app.spec
 
       - name: Archive build artifacts
-        # --onedir 形式のため、生成されたフォルダを ZIP 圧縮します
+        # ${{ github.ref_name }} を使用してタグ名をファイル名に含めます
         shell: powershell
         run: |
-          Compress-Archive -Path dist/my_notepad_app/* -DestinationPath ProMultiTabNotepad_Win.zip
+          Compress-Archive -Path dist/my_notepad_app/* -DestinationPath "ProMultiTabNotepad_${{ github.ref_name }}_Win.zip"
 
       - name: Create Release
         uses: softprops/action-gh-release@v2
         with:
-          files: ProMultiTabNotepad_Win.zip
-          generate_release_notes: true # 前回のタグからの差分を自動生成
+          # ここでも同じファイル名を指定します
+          files: "ProMultiTabNotepad_${{ github.ref_name }}_Win.zip"
+          generate_release_notes: true 
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
