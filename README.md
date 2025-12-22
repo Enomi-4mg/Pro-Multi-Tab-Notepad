@@ -51,9 +51,9 @@ python my_notepad_app.py
 
 | :---: | :---: |
 
-|Ctrl + N|新規タブの作成|
+| Ctrl + N | 新規タブの作成 |
 
-|Ctrl + O|ファイルを開く|
+| Ctrl + O | ファイルを開く |
 
 |Ctrl + S|ファイルを保存|
 
