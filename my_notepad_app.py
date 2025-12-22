@@ -5,6 +5,9 @@ from tkinter import filedialog, messagebox, Canvas
 import os
 import re
 
+import markdown2
+import tempfile
+
 import threading
 import requests
 import webbrowser
@@ -47,6 +50,8 @@ class I18n:
             "update_available": "新バージョン ({version}) が利用可能です！\nGitHubからダウンロードしますか？",
             "update_title": "アップデート通知",
             "version_label": "バージョン: {version}",
+            "preview": "プレビュー",
+            "markdown_preview": "Markdownプレビュー (ブラウザ)",
         },
         "en": {
             "new_file": "New",
@@ -80,6 +85,8 @@ class I18n:
             "update_available": "New version ({version}) is available!\nDo you want to download it from GitHub?",
             "update_title": "Update Available",
             "version_label": "Version: {version}",
+            "preview": "Preview",
+            "markdown_preview": "Markdown Preview (Browser)",
         }
     }
 
@@ -199,6 +206,14 @@ class SyntaxHighlighter:
                 ("string", r"\".*?\"|'.*?'"),
                 ("comment", r"/\*[\s\S]*?\*/")
             ]
+        elif mode == "Markdown":
+            rules = [
+                ("keyword", r"^(#+.*)$"), # 見出し
+                ("string", r"(\*\*.*?\*\*|__.*?__)"), # 太字
+                ("comment", r"(\[.*?\]\(.*?\))"), # リンク
+                ("tag", r"(`.*?`)"), # インラインコード
+    ]
+            
 
         for tag, pattern in rules:
             for match in re.finditer(pattern, content):
@@ -275,7 +290,7 @@ class EditorView(ctk.CTkFrame):
     def _detect_mode(self, path):
         if not path: return "Plain Text"
         ext = os.path.splitext(path)[1].lower()
-        mapping = {".py": "Python", ".html": "HTML", ".css": "CSS", ".js": "JavaScript"}
+        mapping = {".py": "Python", ".html": "HTML", ".css": "CSS", ".js": "JavaScript", ".md": "Markdown"}
         return mapping.get(ext, "Plain Text")
 
     def toggle_line_numbers(self, show):
@@ -738,6 +753,7 @@ class MultiTabApp(ctk.CTk, TabOperationsMixin, FileOperationsMixin, SearchOperat
         self.btn_save = self._add_toolbar_button("save_file", self.save_file)
         self.btn_find = self._add_toolbar_button("find", self.toggle_search)
         
+        self.btn_preview = self._add_toolbar_button("preview", self.preview_markdown)
         self.btn_settings = ctk.CTkButton(self.toolbar, text="", width=80, height=30, fg_color="transparent", 
                                           text_color=AppConfig.COLORS["text_active"], command=self.toggle_settings)
         self.btn_settings.pack(side="right", padx=10, pady=5)
@@ -846,6 +862,42 @@ class MultiTabApp(ctk.CTk, TabOperationsMixin, FileOperationsMixin, SearchOperat
             self.welcome_frame.place_forget()
             self.tab_bar.grid()
             
+    def preview_markdown(self):
+        if not self.current_tab_id: return
+        
+        tab = self.tabs[self.current_tab_id]
+        content = tab["editor"].get("1.0", "end-1c")
+        
+        # Markdown を HTML に変換
+        html_content = markdown2.markdown(content, extras=["fenced-code-blocks", "tables", "task_lists"])
+        
+        # スタイルを適用（ダークモード対応など）
+        bg_color = "white" if ctk.get_appearance_mode() == "Light" else "#1a1a1a"
+        text_color = "black" if ctk.get_appearance_mode() == "Light" else "#e0e0e0"
+        
+        full_html = f"""
+        <html>
+        <head>
+            <meta charset="utf-8">
+            <style>
+                body {{ background-color: {bg_color}; color: {text_color}; font-family: sans-serif; padding: 40px; line-height: 1.6; }}
+                pre {{ background-color: #2b2b2b; color: #f8f8f2; padding: 15px; border-radius: 5px; overflow-x: auto; }}
+                code {{ font-family: 'Consolas', monospace; }}
+                table {{ border-collapse: collapse; width: 100%; }}
+                th, td {{ border: 1px solid #444; padding: 8px; text-align: left; }}
+            </style>
+        </head>
+        <body>{html_content}</body>
+        </html>
+        """
+        
+        # 一時ファイルとして保存して開く
+        with tempfile.NamedTemporaryFile(delete=False, suffix=".html", mode="w", encoding="utf-8") as f:
+            f.write(full_html)
+            temp_path = f.name
+        
+        webbrowser.open(f"file://{temp_path}")
+
     def _setup_window(self):
         # タイトルにバージョンを表示
         self.title(f"{AppConfig.APP_TITLE} - v{VERSION}")
