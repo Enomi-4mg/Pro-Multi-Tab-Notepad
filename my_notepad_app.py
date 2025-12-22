@@ -1,4 +1,4 @@
-VERSION = "1.1.0"
+VERSION = "1.1.1"
 
 import customtkinter as ctk
 from tkinter import filedialog, messagebox, Canvas
@@ -146,7 +146,7 @@ class AppConfig:
         return I18n.get(key, cls.settings["lang"], **kwargs)
     
     GITHUB_USER = "EnoMi-4mg" # 書き換えてください
-    REPO_NAME = "ProMultiTabNotepad"
+    REPO_NAME = "Pro-Multi-Tab-Notepad"
     GITHUB_API_URL = f"https://api.github.com/repos/{GITHUB_USER}/{REPO_NAME}/releases/latest"
 
 # ==========================================
@@ -673,6 +673,8 @@ class SettingsOperationsMixin:
         self.lang_row.label.configure(text=AppConfig.t(self.lang_row.key))
         self.apply_btn.configure(text=AppConfig.t("apply_btn"))
         self.back_btn.configure(text=AppConfig.t("back_btn"))
+        if hasattr(self, "ver_label"):
+            self.ver_label.configure(text=AppConfig.t("version_label", version=VERSION))
 
     def apply_settings(self):
         AppConfig.settings["appearance"] = self.mode_var.get()
@@ -854,13 +856,21 @@ class MultiTabApp(ctk.CTk, TabOperationsMixin, FileOperationsMixin, SearchOperat
         """GitHub APIを使用して最新バージョンを確認する"""
         def _check():
             try:
-                response = requests.get(AppConfig.GITHUB_API_URL, timeout=5)
+                response = requests.get(AppConfig.GITHUB_API_URL, timeout=(5, 15))
+                print(f"Update check: status code {response.status_code}") # デバッグ用
+                
                 if response.status_code == 200:
                     data = response.json()
-                    latest_version_str = data["tag_name"].lstrip('v') # 'v1.2.0' -> '1.2.0'
+                    latest_version_str = data["tag_name"].lstrip('v')
+                    
+                    # デバッグ用にコンソール出力
+                    print(f"Current version: {VERSION}")
+                    print(f"Latest version on GitHub: {latest_version_str}")
                     
                     if version.parse(latest_version_str) > version.parse(VERSION):
                         self.after(0, lambda: self._show_update_dialog(latest_version_str, data["html_url"]))
+                    else:
+                        print("No update available.")
             except Exception as e:
                 print(f"Update check failed: {e}")
 
