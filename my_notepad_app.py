@@ -1,7 +1,14 @@
+VERSION = "1.1.0"
+
 import customtkinter as ctk
 from tkinter import filedialog, messagebox, Canvas
 import os
 import re
+
+import threading
+import requests
+import webbrowser
+from packaging import version
 
 # ==========================================
 # 1. 多言語管理 (I18n)
@@ -36,7 +43,10 @@ class I18n:
             "apply_btn": "設定を適用",
             "back_btn": "エディタに戻る",
             "confirm_close": " は変更されています。保存せずに閉じますか？",
-            "settings_applied": "設定を適用しました。"
+            "settings_applied": "設定を適用しました。",
+            "update_available": "新バージョン ({version}) が利用可能です！\nGitHubからダウンロードしますか？",
+            "update_title": "アップデート通知",
+            "version_label": "バージョン: {version}",
         },
         "en": {
             "new_file": "New",
@@ -66,7 +76,10 @@ class I18n:
             "apply_btn": "Apply Changes",
             "back_btn": "Back to Editor",
             "confirm_close": " has unsaved changes. Close anyway?",
-            "settings_applied": "Settings applied successfully!"
+            "settings_applied": "Settings applied successfully!",
+            "update_available": "New version ({version}) is available!\nDo you want to download it from GitHub?",
+            "update_title": "Update Available",
+            "version_label": "Version: {version}",
         }
     }
 
@@ -131,6 +144,10 @@ class AppConfig:
     @classmethod
     def t(cls, key, **kwargs):
         return I18n.get(key, cls.settings["lang"], **kwargs)
+    
+    GITHUB_USER = "EnoMi-4mg" # 書き換えてください
+    REPO_NAME = "ProMultiTabNotepad"
+    GITHUB_API_URL = f"https://api.github.com/repos/{GITHUB_USER}/{REPO_NAME}/releases/latest"
 
 # ==========================================
 # 3. シンタックスハイライター
@@ -590,6 +607,11 @@ class SettingsOperationsMixin:
         self.apply_btn.pack(side="right", padx=10)
         self.back_btn = ctk.CTkButton(self.btn_frame, text="", command=self.show_editor_view, fg_color="transparent", border_width=1)
         self.back_btn.pack(side="right")
+        
+        self.ver_label = ctk.CTkLabel(self.settings_view, 
+                                     text=AppConfig.t("version_label", version=VERSION),
+                                     text_color=AppConfig.COLORS["text_secondary"])
+        self.ver_label.pack(pady=10)
 
     def _create_section_label(self, key):
         lbl = ctk.CTkLabel(self.settings_view, text=AppConfig.t(key), font=(None, 16, "bold"), text_color=AppConfig.COLORS["text_secondary"])
@@ -686,6 +708,7 @@ class MultiTabApp(ctk.CTk, TabOperationsMixin, FileOperationsMixin, SearchOperat
         self._setup_bindings()
         self._check_empty_state()
         self.update_ui_texts()
+        self.after(2000, self.check_for_updates)
 
     def _ensure_app_directory(self):
         """ホームディレクトリに専用のフォルダを自動作成する"""
@@ -820,6 +843,36 @@ class MultiTabApp(ctk.CTk, TabOperationsMixin, FileOperationsMixin, SearchOperat
         else:
             self.welcome_frame.place_forget()
             self.tab_bar.grid()
+            
+    def _setup_window(self):
+        # タイトルにバージョンを表示
+        self.title(f"{AppConfig.APP_TITLE} - v{VERSION}")
+        self.geometry(AppConfig.GEOMETRY)
+        ctk.set_appearance_mode(AppConfig.settings["appearance"])
+
+    def check_for_updates(self):
+        """GitHub APIを使用して最新バージョンを確認する"""
+        def _check():
+            try:
+                response = requests.get(AppConfig.GITHUB_API_URL, timeout=5)
+                if response.status_code == 200:
+                    data = response.json()
+                    latest_version_str = data["tag_name"].lstrip('v') # 'v1.2.0' -> '1.2.0'
+                    
+                    if version.parse(latest_version_str) > version.parse(VERSION):
+                        self.after(0, lambda: self._show_update_dialog(latest_version_str, data["html_url"]))
+            except Exception as e:
+                print(f"Update check failed: {e}")
+
+        # バックグラウンドスレッドで実行
+        thread = threading.Thread(target=_check, daemon=True)
+        thread.start()
+
+    def _show_update_dialog(self, latest_ver, download_url):
+        """アップデート通知ダイアログを表示"""
+        msg = AppConfig.t("update_available", version=latest_ver)
+        if messagebox.askyesno(AppConfig.t("update_title"), msg):
+            webbrowser.open(download_url)
 
 if __name__ == "__main__":
     app = MultiTabApp()
