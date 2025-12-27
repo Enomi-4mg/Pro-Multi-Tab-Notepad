@@ -3,3 +3,4 @@ darkdetect==0.8.0
 packaging==25.0
 requests==2.31.0
 markdown2==2.4.13
+pypandoc==1.12

@@ -1,4 +1,174 @@
-VERSION = "1.4.0"
+This file is a merged representation of the entire codebase, combined into a single document by Repomix.
+
+<file_summary>
+This section contains a summary of this file.
+
+<purpose>
+This file contains a packed representation of the entire repository's contents.
+It is designed to be easily consumable by AI systems for analysis, code review,
+or other automated processes.
+</purpose>
+
+<file_format>
+The content is organized as follows:
+1. This summary section
+2. Repository information
+3. Directory structure
+4. Repository files (if enabled)
+5. Multiple file entries, each consisting of:
+  - File path as an attribute
+  - Full contents of the file
+</file_format>
+
+<usage_guidelines>
+- This file should be treated as read-only. Any changes should be made to the
+  original repository files, not this packed version.
+- When processing this file, use the file path to distinguish
+  between different files in the repository.
+- Be aware that this file may contain sensitive information. Handle it with
+  the same level of security as you would the original repository.
+</usage_guidelines>
+
+<notes>
+- Some files may have been excluded based on .gitignore rules and Repomix's configuration
+- Binary files are not included in this packed representation. Please refer to the Repository Structure section for a complete list of file paths, including binary files
+- Files matching patterns in .gitignore are excluded
+- Files matching default ignore patterns are excluded
+- Files are sorted by Git change count (files with more changes are at the bottom)
+</notes>
+
+</file_summary>
+
+<directory_structure>
+.github/workflows/release.yml
+icon/icon-win.gfie
+icon/icon-win.ico
+icon/icon.gfie
+my_notepad_app.py
+my_notepad_app.spec
+README.md
+requirements.txt
+</directory_structure>
+
+<files>
+This section contains the contents of the repository's files.
+
+<file path="my_notepad_app.spec">
+# -*- mode: python ; coding: utf-8 -*-
+
+
+a = Analysis(
+    ['my_notepad_app.py'],
+    pathex=[],
+    binaries=[],
+    datas=[],
+    hiddenimports=[],
+    hookspath=[],
+    hooksconfig={},
+    runtime_hooks=[],
+    excludes=[],
+    noarchive=False,
+    optimize=0,
+)
+pyz = PYZ(a.pure)
+
+exe = EXE(
+    pyz,
+    a.scripts,
+    [],
+    exclude_binaries=True,
+    name='my_notepad_app',
+    debug=False,
+    bootloader_ignore_signals=False,
+    strip=False,
+    upx=True,
+    console=False,
+    disable_windowed_traceback=False,
+    argv_emulation=False,
+    target_arch=None,
+    codesign_identity=None,
+    entitlements_file=None,
+    icon=['icon\\icon-win.ico'],
+)
+coll = COLLECT(
+    exe,
+    a.binaries,
+    a.datas,
+    strip=False,
+    upx=True,
+    upx_exclude=[],
+    name='my_notepad_app',
+)
+</file>
+
+<file path="requirements.txt">
+customtkinter==5.2.2
+darkdetect==0.8.0
+packaging==25.0
+requests==2.31.0
+markdown2==2.4.13
+</file>
+
+<file path=".github/workflows/release.yml">
+name: Build and Release
+
+on:
+  push:
+    tags:
+      - 'v*' # v1.1.1 などのタグがプッシュされたときに実行
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+    
+    permissions:
+        contents: write
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pyinstaller
+
+      - name: Clean build directories
+        run: |
+          if (Test-Path dist) { Remove-Item -Recurse -Force dist }
+          if (Test-Path build) { Remove-Item -Recurse -Force build }
+        shell: powershell
+      
+      - name: Build with PyInstaller
+        run: |
+          # 既存の .spec ファイルを使用してビルド
+          python -m PyInstaller --noconfirm my_notepad_app.spec
+
+      - name: Archive build artifacts
+        # ${{ github.ref_name }} を使用してタグ名をファイル名に含めます
+        shell: powershell
+        run: |
+          Compress-Archive -Path dist/my_notepad_app/* -DestinationPath "ProMultiTabNotepad_${{ github.ref_name }}_Win.zip"
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          # ここでも同じファイル名を指定します
+          files: "ProMultiTabNotepad_${{ github.ref_name }}_Win.zip"
+          generate_release_notes: true 
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+</file>
+
+<file path="my_notepad_app.py">
+VERSION = "1.3.1"
 
 import customtkinter as ctk
 from tkinter import filedialog, messagebox, Canvas
@@ -13,7 +183,6 @@ import requests
 import webbrowser
 from packaging import version
 
-import pypandoc
 # ==========================================
 # 1. 多言語管理 (I18n)
 # ==========================================
@@ -54,8 +223,7 @@ class I18n:
             "preview": "プレビュー",
             "markdown_preview": "Markdownプレビュー (ブラウザ)",
             "preview_settings": "プレビュー設定",
-            "preview_interval": "自動更新の間隔 (秒)","import_file": "ファイルをインポート (docx/html)",
-            "conversion_error": "変換エラーが発生しました: {error}",
+            "preview_interval": "自動更新の間隔 (秒)",
         },
         "en": {
             "new_file": "New",
@@ -93,8 +261,6 @@ class I18n:
             "markdown_preview": "Markdown Preview (Browser)",
             "preview_settings": "Preview Settings",
             "preview_interval": "Update Interval (sec)",
-            "import_file": "Import File (docx/html)",
-            "conversion_error": "Conversion error: {error}",
         }
     }
 
@@ -512,37 +678,14 @@ class TabOperationsMixin:
 
 class FileOperationsMixin:
     def open_file(self):
-        # 選択できるファイル形式を拡張
-        file_types = [
-            ("Supported files", "*.txt *.md *.docx *.html *.htm"),
-            ("Markdown/Text", "*.txt *.md"),
-            ("Word Document", "*.docx"),
-            ("HTML document", "*.html *.htm"),
-            ("All files", "*.*")
-        ]
-        
-        path = filedialog.askopenfilename(
-            initialdir=AppConfig.settings["default_dir"],
-            filetypes=file_types
-        )
-        
+        path = filedialog.askopenfilename(initialdir=AppConfig.settings["default_dir"])
         if path:
-            ext = os.path.splitext(path)[1].lower()
-            
-            # インポート対象の拡張子なら変換を実行
-            if ext in [".docx", ".html", ".htm"]:
-                content = self.convert_to_markdown(path)
-                if content is not None:
-                    # 変換後の内容で新規タブを作成（ファイルパスはNoneにして保存を促す）
-                    self.add_new_tab(file_path=None, content=content)
-            else:
-                # 通常のファイル読み込み
-                try:
-                    with open(path, "r", encoding="utf-8") as f:
-                        content = f.read()
-                    self.add_new_tab(file_path=path, content=content)
-                except Exception as e:
-                    messagebox.showerror("Error", str(e))
+            try:
+                with open(path, "r", encoding="utf-8") as f:
+                    content = f.read()
+                self.add_new_tab(file_path=path, content=content)
+            except Exception as e:
+                messagebox.showerror("Error", str(e))
 
     def save_file(self):
         if not self.current_tab_id: return
@@ -633,24 +776,6 @@ class SearchOperationsMixin:
         if idx:
             editor.textbox.mark_set("insert", idx)
             editor.textbox.see(idx)
-
-class ImportOperationsMixin:
-    def convert_to_markdown(self, file_path):
-        """docxやhtmlをMarkdown形式の文字列に変換する"""
-        ext = os.path.splitext(file_path)[1].lower()
-        
-        # 変換が必要な拡張子か判定
-        if ext not in [".docx", ".html", ".htm"]:
-            return None
-
-        try:
-            # Pandocを使用してMarkdown (GitHub Flavored) に変換
-            # extra_argsで画像の扱いなども調整可能
-            output = pypandoc.convert_file(file_path, 'gfm', format=ext.strip('.'))
-            return output
-        except Exception as e:
-            messagebox.showerror("Import Error", AppConfig.t("conversion_error", error=str(e)))
-            return None
 
 # ==========================================
 # 6. 設定管理
@@ -821,7 +946,7 @@ class SettingsOperationsMixin:
 # ==========================================
 # 7. メインアプリケーション (MultiTabApp)
 # ==========================================
-class MultiTabApp(ctk.CTk, TabOperationsMixin, FileOperationsMixin, SearchOperationsMixin, SettingsOperationsMixin, ImportOperationsMixin):
+class MultiTabApp(ctk.CTk, TabOperationsMixin, FileOperationsMixin, SearchOperationsMixin, SettingsOperationsMixin):
     def __init__(self):
         super().__init__()
         # --- 変数の初期化 ---
@@ -1122,3 +1247,125 @@ if __name__ == "__main__":
         app.mainloop()
     except KeyboardInterrupt:
         pass
+</file>
+
+<file path="README.md">
+# Pro Multi-Tab Notepad
+
+![Python](https://img.shields.io/badge/Python-3.8+-blue.svg)
+![CustomTkinter](https://img.shields.io/badge/UI-CustomTkinter-orange.svg)
+![License](https://img.shields.io/badge/License-MIT-green.svg)
+
+Pro Multi-Tab Notepad は、Python と CustomTkinter を使用して構築された、理系学生・エンジニア向けのマルチタブ型テキストエディタです。
+通常のテキスト編集に加え、LaTeX 数式、化学構造式（mhchem）のリアルタイムプレビューに対応しています。
+
+---
+
+## 🌟 主な特徴
+
+- **理系特化 Markdown 支援**:
+  - **LaTeX 数式**: 高度な数学記号・積分のレンダリングに対応。
+  - **化学式 (mhchem)**: 分子式 $\ce{H2O}$ や反応式 $\ce{2H2 + O2 -> 2H2O}$ を美しく表示。
+  - **ブラウザプレビュー**: ワンクリック（または `Ctrl+Shift+P`）でスタイリッシュな HTML プレビューを表示。
+- **ライブ・プレビュー**:
+  - **自動更新**: 10秒ごとに編集内容がブラウザに自動反映。設定から更新間隔を **1秒〜60秒** の間で変更可能。
+  - **再読み込み不要**: 一度ブラウザを開けば、保存操作なしで最新の LaTeX や Markdown を確認可能。
+- **モダンな UI/UX**:
+  - **ショートカット・ツールチップ**: ツールバーのボタンにホバーすると、対応するショートカットキーを表示。
+  - ダークモード/ライトモードの完全切り替え。
+- **コーディング支援**:
+  - **シンタックスハイライト**: Python, HTML, CSS, JS, Markdown に対応。
+  - **視覚ガイド**: 行番号表示、グリッド線表示、現在行ハイライト機能。
+- **検索機能**: リアルタイムハイライトと前後へのナビゲーション。
+- **多言語対応 (i18n)**: 日本語と英語の UI 切り替えに対応。
+- **自動ディレクトリ作成**: ユーザーのホームディレクトリに専用の保存フォルダを自動作成。
+- **自動アップデート確認**: GitHub API を利用し、最新版がある場合に通知を表示。
+
+## ⌨️ ショートカットキー
+
+| キー組合せ | 機能 |
+| :---: | :---: |
+| Ctrl + N | 新規タブの作成 |
+| Ctrl + O | ファイルを開く |
+| Ctrl + S | ファイルを保存 |
+| Ctrl + Shift + P | Markdown プレビュー表示 |
+| Ctrl + F | 検索パネルの表示/非表示 |
+| Ctrl + , | 設定画面の表示/非表示 |
+| Ctrl + L | 行番号の表示/非表示 |
+| Ctrl + G | 罫線（グリッド）の表示/非表示 |
+| Ctrl + H | 現在行ハイライトの有効/無効 |
+
+## ⚙️ 設定オプション
+設定画面（Ctrl + ,）から以下の項目を自由にカスタマイズし、即座に反映させることができます。
+
+- 外観: ライトモード / ダークモード。
+
+- エディタ: フォントサイズ変更、各種視覚ガイド（行番号・罫線・強調）の ON/OFF。
+
+- ファイル: デフォルトの保存先ディレクトリ。
+
+- 言語: 日本語 / 英語。
+
+## 📁 専用フォルダについて
+初回起動時に、利便性のために以下のディレクトリが自動的に作成され、デフォルトの保存先として設定されます。
+
+パス: ~/ProMultiTabNotepad (ユーザーホームディレクトリ内)
+
+## Releaseにて.exeファイルを公開中・以下の手順はコマンドで実行するもの
+
+## 🚀 はじめかた
+
+### 1. 動作環境
+- Python 3.8 以上
+
+### 2. ライブラリのインストール
+ターミナルまたはコマンドプロンプトで以下のコマンドを実行してください。
+
+```bash
+pip install -r requirements.txt
+```
+
+### 3. アプリの起動
+
+メインスクリプトを実行します。
+
+```bash
+python my_notepad_app.py
+```
+
+## 🛠 開発者向け情報
+このアプリは Mixin パターン を採用しており、機能ごとに独立したクラスで構成されています。
+
+- TabOperationsMixin: タブ操作（追加・削除・切替）。
+
+- FileOperationsMixin: ファイル I/O。
+
+- SearchOperationsMixin: 検索 UI およびロジック。
+
+- SettingsOperationsMixin: 設定値の管理と UI 制御。
+
+## 🛠 技術スタック
+- GUI: CustomTkinter
+
+- Markdown: markdown2 (with extras)
+
+- Math/Chemistry: MathJax 3.0 (mhchem extension)
+
+- Automation: GitHub Actions (PyInstaller build)
+
+### バージョン番号
+バージョン番号は X.Y.Z （例：1.1.2）の形式で表し、それぞれの数字に明確な意味を持たせます。
+
+|項目|呼び方|更新するタイミング|例|
+|:---:|:---:|:---:|:---:|
+|X|メジャー (Major)|互換性のない 大幅な変更。使い方がガラッと変わる時。|1.1.2 → 2.0.0
+|Y|マイナー (Minor)|互換性を保ちつつ、新機能を追加した時。|1.1.2 → 1.2.0
+|Z|パッチ (Patch)|互換性を保ちつつ、バグ修正や細かな調整をした時。|1.1.2 → 1.1.3
+
+## 📄 ライセンス
+このプロジェクトは MIT License のもとで公開されています。
+
+Produced with passion for clean coding.
+</file>
+
+</files>
