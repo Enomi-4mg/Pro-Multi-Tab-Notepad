@@ -1,4 +1,4 @@
-VERSION = "1.4.0"
+VERSION = "1.5.0"
 
 import customtkinter as ctk
 from tkinter import filedialog, messagebox, Canvas
@@ -14,6 +14,7 @@ import webbrowser
 from packaging import version
 
 import pypandoc
+import shutil
 # ==========================================
 # 1. 多言語管理 (I18n)
 # ==========================================
@@ -488,7 +489,8 @@ class TabOperationsMixin:
         new["editor"].update_line_numbers()
         new["editor"].highlight_current_line()
         self.update_status_bar()
-
+        self.update_toolbar_visibility()
+    
     def close_tab(self, tab_id):
         tab = self.tabs[tab_id]
         if tab["editor"].is_modified:
@@ -526,23 +528,29 @@ class FileOperationsMixin:
             filetypes=file_types
         )
         
-        if path:
-            ext = os.path.splitext(path)[1].lower()
-            
-            # インポート対象の拡張子なら変換を実行
-            if ext in [".docx", ".html", ".htm"]:
-                content = self.convert_to_markdown(path)
-                if content is not None:
-                    # 変換後の内容で新規タブを作成（ファイルパスはNoneにして保存を促す）
-                    self.add_new_tab(file_path=None, content=content)
-            else:
-                # 通常のファイル読み込み
-                try:
-                    with open(path, "r", encoding="utf-8") as f:
-                        content = f.read()
-                    self.add_new_tab(file_path=path, content=content)
-                except Exception as e:
-                    messagebox.showerror("Error", str(e))
+        if not path: return
+        
+        ext = os.path.splitext(path)[1].lower()
+        # HTML/CSSの場合の選択肢
+        if ext in [".html", ".htm", ".css"]:
+            msg = f"「{os.path.basename(path)}」をどう開きますか？\n\n[はい]: Markdownに変換 (Bundle)\n[いいえ]: ソースコードとして開く"
+            choice = messagebox.askyesno("開くオプション", msg)
+            if choice: # Markdown変換
+                self.import_as_bundle(existing_path=path)
+                return
+            # 「いいえ」の場合はそのまま下のテキスト読み込みへ流す
+        # docxの場合はBundleインポートへ誘導
+        if ext == ".docx":
+            self.import_as_bundle(existing_path=path)
+            return
+
+        # 通常のファイル読み込み処理
+        try:
+            with open(path, "r", encoding="utf-8") as f:
+                content = f.read()
+            self.add_new_tab(file_path=path, content=content)
+        except Exception as e:
+            messagebox.showerror("Error", f"Failed to read: {e}")
 
     def save_file(self):
         if not self.current_tab_id: return
@@ -634,23 +642,95 @@ class SearchOperationsMixin:
             editor.textbox.mark_set("insert", idx)
             editor.textbox.see(idx)
 
-class ImportOperationsMixin:
-    def convert_to_markdown(self, file_path):
-        """docxやhtmlをMarkdown形式の文字列に変換する"""
-        ext = os.path.splitext(file_path)[1].lower()
+class MarkdownEditMixin:
+    def init_markdown_toolbar(self):
+        """Markdown専用の補助ボタンバーを作成 (初期は隠しておく)"""
+        # toolbarの下に配置するためのフレーム
+        self.md_toolbar = ctk.CTkFrame(self, height=35, fg_color=AppConfig.COLORS["toolbar_bg"])
         
-        # 変換が必要な拡張子か判定
-        if ext not in [".docx", ".html", ".htm"]:
+        # 挿入ボタンの定義
+        buttons = [
+            ("H1", "# "), ("H2", "## "), ("B", "**", "**"), 
+            ("I", "*", "*"), ("List", "- "), ("Table", "\n| col | col |\n|---|---|\n| val | val |\n")
+        ]
+
+        for b in buttons:
+            label = b[0]
+            prefix = b[1]
+            suffix = b[2] if len(b) > 2 else ""
+            btn = ctk.CTkButton(self.md_toolbar, text=label, width=40, height=25, 
+                                font=("Segoe UI", 11), fg_color="transparent", border_width=1,
+                                command=lambda p=prefix, s=suffix: self.insert_md_tag(p, s))
+            btn.pack(side="left", padx=2, pady=5)
+
+    def insert_md_tag(self, prefix, suffix=""):
+        if not self.current_tab_id: return
+        editor = self.tabs[self.current_tab_id]["editor"].textbox
+        try:
+            # 選択範囲があれば囲む、なければカーソル位置に挿入
+            sel_text = editor.get("sel.first", "sel.last")
+            editor.delete("sel.first", "sel.last")
+            editor.insert("insert", f"{prefix}{sel_text}{suffix}")
+        except:
+            editor.insert("insert", f"{prefix}{suffix}")
+            if suffix: editor.mark_set("insert", f"insert-{len(suffix)}c")
+
+    def update_toolbar_visibility(self):
+        """現在のファイルのモードに応じてツールバーの表示/非表示を切り替える"""
+        if not self.current_tab_id or self.current_tab_id not in self.tabs:
+            self.md_toolbar.grid_remove()
+            return
+
+        editor = self.tabs[self.current_tab_id]["editor"]
+        if editor.mode == "Markdown":
+            # gridでtoolbarの下(row=2)に表示
+            self.md_toolbar.grid(row=2, column=0, sticky="ew")
+        else:
+            self.md_toolbar.grid_remove()
+
+class ImportOperationsMixin:
+    def convert_to_markdown(self, path):
+        """[新規追加] テキストのみを変換して読み込むヘルパー"""
+        try:
+            ext = os.path.splitext(path)[1].lstrip('.').lower()
+            return pypandoc.convert_file(path, 'gfm', format=ext)
+        except Exception as e:
+            messagebox.showerror("Conversion Error", f"変換失敗: {e}")
             return None
 
+    def import_as_bundle(self, existing_path=None):
+        """existing_path 引数を受け取れるように修正"""
+        path = existing_path or filedialog.askopenfilename(
+            filetypes=[("Importable files", "*.docx *.html *.htm")]
+        )
+        if not path: return
+
+        base_dir = os.path.dirname(path)
+        file_name = os.path.splitext(os.path.basename(path))[0]
+        bundle_dir = os.path.join(base_dir, f"{file_name}_bundle")
+        assets_dir = os.path.join(bundle_dir, "assets")
+
         try:
-            # Pandocを使用してMarkdown (GitHub Flavored) に変換
-            # extra_argsで画像の扱いなども調整可能
-            output = pypandoc.convert_file(file_path, 'gfm', format=ext.strip('.'))
-            return output
+            os.makedirs(assets_dir, exist_ok=True)
+            ext = os.path.splitext(path)[1].lstrip('.').lower()
+            output = pypandoc.convert_file(
+                path, 'gfm', format=ext,
+                extra_args=['--extract-media', bundle_dir] 
+            )
+            # mediaフォルダをassetsへ整理
+            media_path = os.path.join(bundle_dir, "media")
+            if os.path.exists(media_path):
+                for f in os.listdir(media_path):
+                    shutil.move(os.path.join(media_path, f), os.path.join(assets_dir, f))
+                shutil.rmtree(media_path)
+                output = output.replace("media/", "assets/")
+
+            index_path = os.path.join(bundle_dir, "index.md")
+            with open(index_path, "w", encoding="utf-8") as f:
+                f.write(output)
+            self.add_new_tab(file_path=index_path, content=output)
         except Exception as e:
-            messagebox.showerror("Import Error", AppConfig.t("conversion_error", error=str(e)))
-            return None
+            messagebox.showerror("Error", str(e))
 
 # ==========================================
 # 6. 設定管理
@@ -821,7 +901,7 @@ class SettingsOperationsMixin:
 # ==========================================
 # 7. メインアプリケーション (MultiTabApp)
 # ==========================================
-class MultiTabApp(ctk.CTk, TabOperationsMixin, FileOperationsMixin, SearchOperationsMixin, SettingsOperationsMixin, ImportOperationsMixin):
+class MultiTabApp(ctk.CTk, TabOperationsMixin, FileOperationsMixin, SearchOperationsMixin, SettingsOperationsMixin, ImportOperationsMixin, MarkdownEditMixin):
     def __init__(self):
         super().__init__()
         # --- 変数の初期化 ---
@@ -831,6 +911,7 @@ class MultiTabApp(ctk.CTk, TabOperationsMixin, FileOperationsMixin, SearchOperat
         self.init_tab_system()
         self._setup_window()
         self._create_widgets()
+        self.init_markdown_toolbar()
         self.init_search_ui()
         self.init_settings_ui()
         self._setup_bindings()
@@ -856,13 +937,18 @@ class MultiTabApp(ctk.CTk, TabOperationsMixin, FileOperationsMixin, SearchOperat
         ctk.set_appearance_mode(AppConfig.settings["appearance"])
 
     def _create_widgets(self):
+        # レイアウトを1行分増やす調整
+        self.grid_rowconfigure(0, weight=0)
+        self.grid_rowconfigure(1, weight=0)
         self.grid_rowconfigure(2, weight=0)
-        self.grid_rowconfigure(1, weight=1)
+        self.grid_rowconfigure(3, weight=1) # ここがエディタ。ここを weight=1 にする
+        self.grid_rowconfigure(4, weight=0)
         self.grid_columnconfigure(0, weight=1)
-
+        
+        # --- row 0: メインツールバー ---
         self.toolbar = ctk.CTkFrame(self, height=40, corner_radius=0, fg_color=AppConfig.COLORS["toolbar_bg"])
         self.toolbar.grid(row=0, column=0, sticky="ew")
-        
+        # ボタン追加処理
         self.btn_new = self._add_toolbar_button("new_file", self.add_new_tab, "Ctrl+N")
         self.btn_open = self._add_toolbar_button("open_file", self.open_file, "Ctrl+O")
         self.btn_save = self._add_toolbar_button("save_file", self.save_file, "Ctrl+S")
@@ -873,14 +959,16 @@ class MultiTabApp(ctk.CTk, TabOperationsMixin, FileOperationsMixin, SearchOperat
                                           text_color=AppConfig.COLORS["text_active"], command=self.toggle_settings)
         self.btn_settings.pack(side="right", padx=10, pady=5)
         CTkToolTip(self.btn_settings, "Ctrl+,")
-
+        
+        # --- row 1: タブバー ---
         self.tab_bar = ctk.CTkScrollableFrame(self, height=35, orientation="horizontal", 
                                              fg_color=AppConfig.COLORS["tabbar_bg"], corner_radius=0)
-        self.tab_bar.grid(row=1, column=0, sticky="new")
+        self.tab_bar.grid(row=1, column=0, sticky="ew")
         
+        # --- row 3: エディタコンテナ ---
         self.editor_container = ctk.CTkFrame(self, corner_radius=0, fg_color=AppConfig.COLORS["editor_bg"])
-        self.editor_container.grid(row=1, column=0, sticky="nsew", pady=(35, 0))
-
+        self.editor_container.grid(row=3, column=0, sticky="nsew")
+        # (Welcomeフレーム)
         self.welcome_frame = ctk.CTkFrame(self.editor_container, fg_color="transparent")
         self.welcome_title = ctk.CTkLabel(self.welcome_frame, text="", font=(None, 28, "bold"))
         self.welcome_title.pack(pady=(0, 10))
@@ -891,11 +979,14 @@ class MultiTabApp(ctk.CTk, TabOperationsMixin, FileOperationsMixin, SearchOperat
         btn_container.pack()
         self.welcome_new_btn = ctk.CTkButton(btn_container, text="", width=140, height=40, command=self.add_new_tab)
         self.welcome_new_btn.pack(side="left", padx=10)
+        CTkToolTip(self.welcome_new_btn, "Ctrl+N")
         self.welcome_open_btn = ctk.CTkButton(btn_container, text="", width=140, height=40, command=self.open_file, fg_color="transparent", border_width=1)
         self.welcome_open_btn.pack(side="left", padx=10)
+        CTkToolTip(self.welcome_open_btn, "Ctrl+O")
         
+        # --- row 4: ステータスバー ---
         self.status_bar = ctk.CTkFrame(self, height=25, corner_radius=0, fg_color=AppConfig.COLORS["status_bg"])
-        self.status_bar.grid(row=2, column=0, sticky="ew")
+        self.status_bar.grid(row=4, column=0, sticky="ew")
         self.status_label_left = ctk.CTkLabel(self.status_bar, text="", font=("Segoe UI", 11))
         self.status_label_left.pack(side="left", padx=15)
         self.status_label_right = ctk.CTkLabel(self.status_bar, text="", font=("Segoe UI", 11))
@@ -935,6 +1026,8 @@ class MultiTabApp(ctk.CTk, TabOperationsMixin, FileOperationsMixin, SearchOperat
         self.bind_all("<Control-l>", lambda e: self.toggle_line_numbers_global())
         self.bind_all("<Control-g>", lambda e: self.toggle_grid_global())
         self.bind_all("<Control-h>", lambda e: self.toggle_current_line_global())
+        self.bind_all("<Control-Shift-Z>", lambda e: self.redo_action() or "break")
+        self.bind_all("<Control-Shift-z>", lambda e: self.redo_action() or "break")
 
     def toggle_line_numbers_global(self):
         new_state = not AppConfig.settings["show_line_numbers"]
@@ -957,6 +1050,22 @@ class MultiTabApp(ctk.CTk, TabOperationsMixin, FileOperationsMixin, SearchOperat
         self.cur_line_var.set(new_state)
         for tab in self.tabs.values():
             tab["editor"].highlight_current_line()
+    
+    def redo_action(self):
+        """現在アクティブなタブのエディタでやり直し(Redo)を実行する"""
+        if not self.current_tab_id or self.current_tab_id not in self.tabs:
+            return
+        
+        # 現在のタブのエディタ(CTkTextbox)の内部テキストウィジェットでredoを実行
+        editor_view = self.tabs[self.current_tab_id]["editor"]
+        try:
+            # CTkTextboxの内部のtkinter.Textウィジェットに対してedit_redoを呼び出す
+            editor_view.textbox._textbox.edit_redo()
+            # 変更があったことを検知するためにイベントハンドラを呼ぶ
+            editor_view._handle_event()
+        except Exception:
+            # やり直す履歴がない場合は何もしない
+            pass
 
     def update_status_bar(self):
         if self.settings_visible:
@@ -996,8 +1105,15 @@ class MultiTabApp(ctk.CTk, TabOperationsMixin, FileOperationsMixin, SearchOperat
             return None
         
         tab = self.tabs[self.current_tab_id]
-        content = tab["editor"].get("1.0", "end-1c")
-
+        editor = tab["editor"]
+        content = editor.get("1.0", "end-1c")
+        
+        base_tag = ""
+        if editor.file_path:
+            # ファイルが存在するディレクトリをBaseにすることで assets/image.png が読み込める
+            file_dir = os.path.abspath(os.path.dirname(editor.file_path)).replace("\\", "/")
+            base_tag = f'<base href="file:///{file_dir}/">'
+        
         # --- 数式・化学式保護ロジック ---
         math_blocks = []
         def save_math(match):
@@ -1020,6 +1136,8 @@ class MultiTabApp(ctk.CTk, TabOperationsMixin, FileOperationsMixin, SearchOperat
         is_dark = ctk.get_appearance_mode() == "Dark"
         bg_color = "#1a1a1a" if is_dark else "white"
         text_color = "#e0e0e0" if is_dark else "black"
+        border_color = "#444" if is_dark else "#ccc"
+        header_bg = "#333" if is_dark else "#f5f5f5"
         
         interval_sec = AppConfig.settings.get("preview_interval", 5)
 
@@ -1028,6 +1146,7 @@ class MultiTabApp(ctk.CTk, TabOperationsMixin, FileOperationsMixin, SearchOperat
         <html>
         <head>
             <meta charset="utf-8">
+            {base_tag}
             <script>
                 // ブラウザ側のリロード間隔も設定値に同期
                 setInterval(() => {{ location.reload(); }}, {interval_sec * 1000});
@@ -1053,6 +1172,11 @@ class MultiTabApp(ctk.CTk, TabOperationsMixin, FileOperationsMixin, SearchOperat
                 body {{ background-color: {bg_color}; color: {text_color}; font-family: sans-serif; line-height: 1.7; max-width: 850px; margin: 0 auto; padding: 40px; }}
                 h1 {{ border-bottom: 2px solid #569CD6; padding-bottom: 10px; }}
                 pre {{ background: #2b2b2b; color: #f8f8f2; padding: 15px; border-radius: 8px; overflow-x: auto; }}
+                table {{ border-collapse: collapse; width: 100%; margin: 20px 0; border: 1px solid {border_color}; }}
+                th, td {{ border: 1px solid {border_color}; padding: 12px; text-align: left; }}
+                th {{ background-color: {header_bg}; font-weight: bold; }}
+                tr:nth-child(even) {{ background-color: rgba(128,128,128,0.05); }}
+                img {{ max-width: 100%; height: auto; border-radius: 4px; }}
                 .MathJax {{ font-size: 1.1em !important; }}
             </style>
         </head>
