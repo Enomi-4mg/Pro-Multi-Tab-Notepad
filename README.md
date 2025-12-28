@@ -2,7 +2,6 @@
 
 ![Python](https://img.shields.io/badge/Python-3.8+-blue.svg)
 ![CustomTkinter](https://img.shields.io/badge/UI-CustomTkinter-orange.svg)
-![License](https://img.shields.io/badge/License-MIT-green.svg)
 
 Pro Multi-Tab Notepad は、Python と CustomTkinter を使用して構築された、理系学生・エンジニア向けのマルチタブ型テキストエディタです。
 通常のテキスト編集に加え、LaTeX 数式、化学構造式（mhchem）のリアルタイムプレビューに対応しています。
@@ -29,6 +28,32 @@ Pro Multi-Tab Notepad は、Python と CustomTkinter を使用して構築され
 - **自動ディレクトリ作成**: ユーザーのホームディレクトリに専用の保存フォルダを自動作成。
 - **自動アップデート確認**: GitHub API を利用し、最新版がある場合に通知を表示。
 
+## 🌟 新機能 (v1.5.0)
+
+- **万能インポート機能** (Bundle形式)
+ - スマート変換: .docx や .html をワンクリックで Markdown へ変換。
+ - アセット管理: 変換時に [ファイル名]_bundle フォルダを自動生成し、文書内の画像を assets/ フォルダへ自動抽出。
+ - リンク自動解決: Markdown 内の画像パスを相対パス（assets/image.png）に自動書き換え。
+ - 選択的インポート: HTML/CSS を開く際、「Markdownに変換してインポート」か「ソースコードとして直接編集」かを選択可能。
+
+- Markdown 編集ツールバー
+ - コンテキスト対応: .md ファイルを編集している時だけ、エディタ上部に専用の補助ツールバーが出現。
+ - 直感操作: 見出し（H1/H2）、強調、斜体、箇条書き、テーブル雛形の挿入をワンクリックで実行。
+ - 動的レイアウト: タブバーや行番号と干渉しない独立したグリッド配置を採用。
+
+- プレビュー・視覚体験の強化
+ - 相対パスプレビュー: <base> タグの動的挿入により、ローカルの assets/ 内にある画像をプレビュー上で正しく表示。
+
+## 📁 Bundle形式のディレクトリ構造
+
+インポート機能を利用すると、アセットを含めたプロジェクト管理が容易になります。
+
+```text
+[ファイル名]_bundle/
+├── index.md        # 変換されたMarkdown本体
+└── assets/         # 抽出された画像ファイル群
+```
+
 ## ⌨️ ショートカットキー
 
 | キー組合せ | 機能 |
@@ -37,11 +62,11 @@ Pro Multi-Tab Notepad は、Python と CustomTkinter を使用して構築され
 | Ctrl + O | ファイルを開く |
 | Ctrl + S | ファイルを保存 |
 | Ctrl + Shift + P | Markdown プレビュー表示 |
+| Ctrl + Z | Undo |
+| Ctrl + Shift + Z | Redo |
 | Ctrl + F | 検索パネルの表示/非表示 |
 | Ctrl + , | 設定画面の表示/非表示 |
-| Ctrl + L | 行番号の表示/非表示 |
-| Ctrl + G | 罫線（グリッド）の表示/非表示 |
-| Ctrl + H | 現在行ハイライトの有効/無効 |
+| Ctrl + L / G / H | 行番号 / 罫線 / 現在行強調 の切替 |
 
 ## ⚙️ 設定オプション
 設定画面（Ctrl + ,）から以下の項目を自由にカスタマイズし、即座に反映させることができます。
@@ -111,6 +136,6 @@ python my_notepad_app.py
 |Z|パッチ (Patch)|互換性を保ちつつ、バグ修正や細かな調整をした時。|1.1.2 → 1.1.3
 
 ## 📄 ライセンス
-このプロジェクトは MIT License のもとで公開されています。
+
 
 Produced with passion for clean coding.
