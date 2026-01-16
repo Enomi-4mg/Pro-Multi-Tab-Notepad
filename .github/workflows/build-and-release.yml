@@ -51,6 +51,22 @@ jobs:
       run: |
         python -m PyInstaller my_notepad_app.spec --clean
       
+    - name: Check build output
+      run: |
+        Write-Host "Build output check:" -ForegroundColor Cyan
+        if (Test-Path "dist\Pro-Multi-Tab-Notepad.exe") {
+          $file = Get-Item "dist\Pro-Multi-Tab-Notepad.exe"
+          Write-Host "✓ Found: dist\Pro-Multi-Tab-Notepad.exe"
+          Write-Host "  Size: $([math]::Round($file.Length/1MB, 2)) MB"
+          Write-Host "  Modified: $($file.LastWriteTime)"
+        } else {
+          Write-Host "✗ File not found: dist\Pro-Multi-Tab-Notepad.exe"
+          Write-Host "Files in dist:"
+          Get-ChildItem "dist" -Filter "*.exe" | ForEach-Object { Write-Host "  - $($_.Name)" }
+          exit 1
+        }
+      shell: pwsh
+      
     - name: Sign executable
       run: |
         .\sign_executable.ps1 -ExePath "dist\Pro-Multi-Tab-Notepad.exe" -CertPath "CodeSigningCert.pfx" -CertPassword "${{ secrets.CERT_PASSWORD }}"
