@@ -104,6 +104,7 @@ class MultiTabApp(ctk.CTk, TabOperationsMixin, FileOperationsMixin, SearchOperat
         self.btn_new = self._add_toolbar_button("new_file", self.add_new_tab, "Ctrl+N")
         self.btn_open = self._add_toolbar_button("open_file", self.open_file, "Ctrl+O")
         self.btn_save = self._add_toolbar_button("save_file", self.save_file, "Ctrl+S")
+        self.btn_save_as = self._add_toolbar_button("save_as", self.save_file_as, "Ctrl+Shift+S")
         self.btn_find = self._add_toolbar_button("find", self.toggle_search, "Ctrl+F")
         self.btn_preview = self._add_toolbar_button("preview", self.preview_markdown, "Ctrl+Shift+P")
         
@@ -157,6 +158,7 @@ class MultiTabApp(ctk.CTk, TabOperationsMixin, FileOperationsMixin, SearchOperat
         self.btn_new.configure(text=AppConfig.t("new_file"))
         self.btn_open.configure(text=AppConfig.t("open_file"))
         self.btn_save.configure(text=AppConfig.t("save_file"))
+        self.btn_save_as.configure(text=AppConfig.t("save_as"))
         self.btn_find.configure(text=AppConfig.t("find"))
         self.btn_settings.configure(text=AppConfig.t("settings"))
         self.welcome_title.configure(text=AppConfig.t("welcome_title"))
@@ -169,6 +171,7 @@ class MultiTabApp(ctk.CTk, TabOperationsMixin, FileOperationsMixin, SearchOperat
         self.bind_all("<Control-n>", lambda e: self.add_new_tab() or "break")
         self.bind_all("<Control-o>", lambda e: self.open_file() or "break")
         self.bind_all("<Control-s>", lambda e: self.save_file() or "break")
+        self.bind_all("<Control-Shift-S>", lambda e: self.save_file_as() or "break")
         self.bind_all("<Control-f>", self.toggle_search)
         self.bind_all("<Control-comma>", lambda e: self.toggle_settings())
         # ショートカットキーを修正

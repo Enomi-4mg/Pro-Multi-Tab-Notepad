@@ -48,10 +48,18 @@ class FileOperationsMixin:
         if not self.current_tab_id: return
         tab = self.tabs[self.current_tab_id]
         editor = tab["editor"]
-        path = editor.file_path or filedialog.asksaveasfilename(
-            defaultextension=".txt", 
-            initialdir=AppConfig.settings["default_dir"]
-        )
+        
+        # 既存ファイルの場合はそのまま保存、新規ファイルの場合はinitialdirを設定
+        if editor.file_path:
+            path = editor.file_path
+        else:
+            # 新規ファイル: last_save_dir または default_dir を使用
+            initial_dir = AppConfig.settings.get("last_save_dir") or AppConfig.settings["default_dir"]
+            path = filedialog.asksaveasfilename(
+                defaultextension=".txt",
+                initialdir=initial_dir
+            )
+        
         if path:
             try:
                 with open(path, "w", encoding="utf-8") as f:
@@ -62,6 +70,67 @@ class FileOperationsMixin:
                 tab["name"] = os.path.basename(path)
                 tab["btn"].configure(text=tab["name"])
                 editor.reset_modified()
+                
+                # 保存先ディレクトリを記憶
+                AppConfig.settings["last_save_dir"] = os.path.dirname(path)
+                
+                # 最近のファイルリストに追加
+                self._add_to_recent(path)
+                
                 self.update_status_bar()
             except Exception as e:
                 messagebox.showerror("Error", str(e))
+    
+    def save_file_as(self):
+        """別名で保存機能"""
+        if not self.current_tab_id: return
+        tab = self.tabs[self.current_tab_id]
+        editor = tab["editor"]
+        
+        # initialdirを現在のファイルのディレクトリまたはlast_save_dirに設定
+        if editor.file_path:
+            initial_dir = os.path.dirname(editor.file_path)
+        else:
+            initial_dir = AppConfig.settings.get("last_save_dir") or AppConfig.settings["default_dir"]
+        
+        path = filedialog.asksaveasfilename(
+            defaultextension=".txt",
+            initialdir=initial_dir,
+            initialfile=os.path.basename(editor.file_path) if editor.file_path else "untitled.txt"
+        )
+        
+        if path:
+            try:
+                with open(path, "w", encoding="utf-8") as f:
+                    f.write(editor.get("1.0", "end-1c"))
+                editor.file_path = path
+                editor.mode = editor._detect_mode(path)
+                editor.apply_highlight()
+                tab["name"] = os.path.basename(path)
+                tab["btn"].configure(text=tab["name"])
+                editor.reset_modified()
+                
+                # 保存先ディレクトリを記憶
+                AppConfig.settings["last_save_dir"] = os.path.dirname(path)
+                
+                # 最近のファイルリストに追加
+                self._add_to_recent(path)
+                
+                self.update_status_bar()
+            except Exception as e:
+                messagebox.showerror("Error", str(e))
+    
+    def _add_to_recent(self, path):
+        """最近のファイルリストに追加（最大10件まで）"""
+        abs_path = os.path.abspath(path)
+        recent = AppConfig.settings["recent_files"]
+        
+        # 重複を削除
+        if abs_path in recent:
+            recent.remove(abs_path)
+        
+        # 先頭に追加
+        recent.insert(0, abs_path)
+        
+        # 最大10件に制限
+        AppConfig.settings["recent_files"] = recent[:10]
