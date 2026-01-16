@@ -126,7 +126,11 @@ class MultiTabApp(ctk.CTk, TabOperationsMixin, FileOperationsMixin, SearchOperat
         self.welcome_title = ctk.CTkLabel(self.welcome_frame, text="", font=(None, 28, "bold"))
         self.welcome_title.pack(pady=(0, 10))
         self.welcome_subtitle = ctk.CTkLabel(self.welcome_frame, text="", text_color=AppConfig.COLORS["text_secondary"])
-        self.welcome_subtitle.pack(pady=(0, 30))
+        self.welcome_subtitle.pack(pady=(0, 20))
+        
+        # 最近のファイルフレーム
+        self.recent_files_frame = ctk.CTkFrame(self.welcome_frame, fg_color="transparent")
+        self.recent_files_frame.pack(pady=(0, 20))
         
         btn_container = ctk.CTkFrame(self.welcome_frame, fg_color="transparent")
         btn_container.pack()
@@ -165,6 +169,9 @@ class MultiTabApp(ctk.CTk, TabOperationsMixin, FileOperationsMixin, SearchOperat
         self.welcome_subtitle.configure(text=AppConfig.t("welcome_subtitle"))
         self.welcome_new_btn.configure(text=AppConfig.t("new_file"))
         self.welcome_open_btn.configure(text=AppConfig.t("open_file"))
+        # 最近のファイルUIを更新
+        if not self.tabs:
+            self._update_recent_files_ui()
         self.update_status_bar()
 
     def _setup_bindings(self):
@@ -244,9 +251,58 @@ class MultiTabApp(ctk.CTk, TabOperationsMixin, FileOperationsMixin, SearchOperat
         if not self.tabs:
             self.welcome_frame.place(relx=0.5, rely=0.5, anchor="center")
             self.tab_bar.grid_remove()
+            # 最近のファイルUIを更新
+            self._update_recent_files_ui()
         else:
             self.welcome_frame.place_forget()
             self.tab_bar.grid()
+    
+    def _update_recent_files_ui(self):
+        """最近のファイルリスト（最新5件）をWelcomeスクリーンに表示"""
+        # 既存のボタンをすべて削除
+        for widget in self.recent_files_frame.winfo_children():
+            widget.destroy()
+        
+        recent_files = AppConfig.settings.get("recent_files", [])[:5]  # 最新5件のみ
+        
+        if not recent_files:
+            # 履歴がない場合
+            no_recent_label = ctk.CTkLabel(
+                self.recent_files_frame,
+                text=AppConfig.t("no_recent_files"),
+                text_color=AppConfig.COLORS["text_secondary"],
+                font=(None, 12)
+            )
+            no_recent_label.pack()
+            return
+        
+        # タイトル
+        recent_title = ctk.CTkLabel(
+            self.recent_files_frame,
+            text=AppConfig.t("recent_files"),
+            font=(None, 14, "bold"),
+            text_color=AppConfig.COLORS["text_secondary"]
+        )
+        recent_title.pack(pady=(0, 10))
+        
+        # 各ファイルのボタンを作成
+        for file_path in recent_files:
+            if os.path.exists(file_path):
+                file_name = os.path.basename(file_path)
+                file_btn = ctk.CTkButton(
+                    self.recent_files_frame,
+                    text=file_name,
+                    width=300,
+                    height=35,
+                    fg_color="transparent",
+                    border_width=1,
+                    anchor="w",
+                    command=lambda p=file_path: self.open_file_by_path(p)
+                )
+                file_btn.pack(pady=2)
+            else:
+                # 存在しないファイルは履歴から削除
+                AppConfig.settings["recent_files"].remove(file_path)
     
     def _setup_auto_preview(self):
         """バックグラウンドでHTMLファイルを更新し続ける"""
@@ -398,6 +454,14 @@ class MultiTabApp(ctk.CTk, TabOperationsMixin, FileOperationsMixin, SearchOperat
 if __name__ == "__main__":
     try:
         app = MultiTabApp()
+        
+        # 起動時引数として渡されたファイルを開く
+        if len(sys.argv) > 1:
+            for file_path in sys.argv[1:]:
+                if os.path.isfile(file_path):
+                    # GUIが完全に初期化された後に開く
+                    app.after(100, lambda fp=file_path: app.open_file_by_path(fp))
+        
         app.mainloop()
     except KeyboardInterrupt:
         pass

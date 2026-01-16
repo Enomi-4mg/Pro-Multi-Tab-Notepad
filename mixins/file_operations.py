@@ -41,6 +41,37 @@ class FileOperationsMixin:
             with open(path, "r", encoding="utf-8") as f:
                 content = f.read()
             self.add_new_tab(file_path=path, content=content)
+            # 最近のファイルリストに追加
+            self._add_to_recent(path)
+        except Exception as e:
+            messagebox.showerror("Error", f"Failed to read: {e}")
+    
+    def open_file_by_path(self, path):
+        """指定したパスのファイルを開く（起動時引数や履歴からの呼び出し用）"""
+        if not os.path.exists(path):
+            messagebox.showerror(
+                AppConfig.t("file_not_found"),
+                AppConfig.t("file_not_found", path=path)
+            )
+            # 存在しないファイルを履歴から削除
+            if path in AppConfig.settings["recent_files"]:
+                AppConfig.settings["recent_files"].remove(path)
+            return
+        
+        ext = os.path.splitext(path)[1].lower()
+        
+        # docxの場合はBundleインポート
+        if ext == ".docx":
+            self.import_as_bundle(existing_path=path)
+            self._add_to_recent(path)
+            return
+        
+        # 通常のテキストファイル
+        try:
+            with open(path, "r", encoding="utf-8") as f:
+                content = f.read()
+            self.add_new_tab(file_path=path, content=content)
+            self._add_to_recent(path)
         except Exception as e:
             messagebox.showerror("Error", f"Failed to read: {e}")
 
