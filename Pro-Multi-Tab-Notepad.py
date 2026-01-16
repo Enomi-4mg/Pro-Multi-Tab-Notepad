@@ -1,4 +1,4 @@
-VERSION = "1.5.0"
+VERSION = "1.5.1"
 
 import customtkinter as ctk
 from tkinter import messagebox
