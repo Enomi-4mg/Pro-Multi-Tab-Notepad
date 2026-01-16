@@ -97,5 +97,29 @@ git push origin --force --all
 
 ---
 
-**Last Updated**: 2026-01-16
+**Last Updated**: 2026-01-17
+
+## 📜 コード署名証明書情報
+
+### 現在の証明書
+
+| 項目 | 詳細 |
+|------|------|
+| **発行者 (Subject)** | CN=EnoMi-4mg, O=Personal, C=JP |
+| **有効期限 (NotAfter)** | 2031-01-16 |
+| **作成日** | 2026-01-16 15:05:34 |
+| **Thumbprint** | 6F0EACEC12BEE81318AE1785DD8C6360B5C37C5E |
+| **証明書タイプ** | 自己署名証明書 |
+
+### 更新予定
+
+- **次回更新予定日**: 2030-12-01（期限の約1ヶ月前）
+- **更新手順**: `.\create_certificate.ps1` を実行して新しい証明書を生成
+- **GitHub Secrets 更新**: 新しい証明書を Base64 エンコードして GitHub Secrets を更新
+
+### 注意事項
+
+- 自己署名証明書のため、Windows SmartScreen で警告が表示される可能性があります
+- 本番環境では認証局（CA）から発行された証明書の使用を推奨します
+- 証明書の有効期限が切れると、GitHub Actions のビルドが失敗します
 **Status**: ✅ Secure Configuration

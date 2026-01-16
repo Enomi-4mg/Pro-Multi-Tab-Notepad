@@ -1,0 +1,157 @@
+name: Build and Release
+
+on:
+  push:
+    tags:
+      - 'v*'  # v1.6.2, v1.7.0 などのタグでトリガー
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.11'
+        
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        pip install pyinstaller
+        
+    - name: Install NSIS
+      run: |
+        choco install nsis -y
+        
+    - name: Decode certificate
+      run: |
+        $certBase64 = "${{ secrets.CERT_BASE64 }}"
+        $certBytes = [System.Convert]::FromBase64String($certBase64)
+        [System.IO.File]::WriteAllBytes("CodeSigningCert.pfx", $certBytes)
+      shell: pwsh
+      
+    - name: Extract version from config.py
+      id: version
+      run: |
+        $versionMatch = Select-String -Path "config.py" -Pattern 'APP_VERSION\s*=\s*"([^"]+)"'
+        $appVersion = $versionMatch.Matches.Groups[1].Value
+        echo "APP_VERSION=$appVersion" >> $env:GITHUB_OUTPUT
+        Write-Host "Extracted version: $appVersion"
+      shell: pwsh
+      
+    - name: Build with PyInstaller
+      run: |
+        python -m PyInstaller my_notepad_app.spec --clean
+      
+    - name: Sign executable
+      run: |
+        $certPath = "CodeSigningCert.pfx"
+        $exePath = "dist\Pro-Multi-Tab-Notepad.exe"
+        $certPassword = "${{ secrets.CERT_PASSWORD }}"
+        
+        # signtool でEXEに署名
+        & "C:\Program Files (x86)\Windows Kits\10\bin\10.0.22621.0\x64\signtool.exe" sign `
+          /f $certPath `
+          /p $certPassword `
+          /fd SHA256 `
+          /tr http://timestamp.digicert.com `
+          /td SHA256 `
+          /v `
+          $exePath
+      shell: pwsh
+      
+    - name: Build NSIS installer
+      run: |
+        $appVersion = "${{ steps.version.outputs.APP_VERSION }}"
+        & "C:\Program Files (x86)\NSIS\makensis.exe" /DAPP_VERSION=$appVersion installer.nsi
+      shell: pwsh
+      
+    - name: Sign installer
+      run: |
+        $certPath = "CodeSigningCert.pfx"
+        $appVersion = "${{ steps.version.outputs.APP_VERSION }}"
+        $installerPath = "Pro-Multi-Tab-Notepad-Installer-v$appVersion.exe"
+        $certPassword = "${{ secrets.CERT_PASSWORD }}"
+        
+        # signtool でインストーラーに署名
+        & "C:\Program Files (x86)\Windows Kits\10\bin\10.0.22621.0\x64\signtool.exe" sign `
+          /f $certPath `
+          /p $certPassword `
+          /fd SHA256 `
+          /tr http://timestamp.digicert.com `
+          /td SHA256 `
+          /v `
+          $installerPath
+      shell: pwsh
+      
+    - name: Create Release
+      id: create_release
+      uses: actions/create-release@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        tag_name: ${{ github.ref_name }}
+        release_name: Pro Multi-Tab Notepad ${{ github.ref_name }}
+        draft: false
+        prerelease: false
+        body: |
+          ## Pro Multi-Tab Notepad ${{ github.ref_name }}
+          
+          ### 📦 ダウンロード
+          
+          **インストーラー版（推奨）**
+          - Windows 64bit 向けインストーラー
+          - ファイル関連付け自動設定
+          - スタートメニュー・デスクトップショートカット作成
+          
+          **スタンドアロン版**
+          - インストール不要、単体で動作
+          - USB メモリなどで持ち運び可能
+          
+          ### ✨ 主な機能
+          - マルチタブテキストエディタ
+          - Markdown プレビュー（LaTeX・化学式対応）
+          - シンタックスハイライト
+          - ファイル検索・置換
+          - 多言語対応（日本語・英語）
+          
+          ### 🔐 セキュリティ
+          - すべてのファイルにデジタル署名済み
+          - 発行者: EnoMi-4mg, Personal
+          
+          ---
+          
+          詳細は [README.md](https://github.com/${{ github.repository }}/blob/main/README.md) をご覧ください。
+        
+    - name: Upload Installer to Release
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ steps.create_release.outputs.upload_url }}
+        asset_path: ./Pro-Multi-Tab-Notepad-Installer-v${{ steps.version.outputs.APP_VERSION }}.exe
+        asset_name: Pro-Multi-Tab-Notepad-Installer-v${{ steps.version.outputs.APP_VERSION }}.exe
+        asset_content_type: application/octet-stream
+        
+    - name: Upload Standalone EXE to Release
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ steps.create_release.outputs.upload_url }}
+        asset_path: ./dist/Pro-Multi-Tab-Notepad.exe
+        asset_name: Pro-Multi-Tab-Notepad-v${{ steps.version.outputs.APP_VERSION }}.exe
+        asset_content_type: application/octet-stream
+        
+    - name: Cleanup certificate
+      if: always()
+      run: |
+        if (Test-Path "CodeSigningCert.pfx") {
+          Remove-Item "CodeSigningCert.pfx" -Force
+        }
+      shell: pwsh

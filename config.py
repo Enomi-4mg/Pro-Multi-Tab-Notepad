@@ -1,5 +1,6 @@
 import customtkinter as ctk
 import os
+from pathlib import Path
 
 # ==========================================
 # 1. 多言語管理 (I18n)
@@ -114,12 +115,12 @@ class I18n:
 # ==========================================
 class AppConfig:
     APP_TITLE = "Pro Multi-Tab Notepad"
-    APP_VERSION = "1.6.2"  # バージョン情報
+    APP_VERSION = "1.6.3"  # バージョン情報
     GEOMETRY = "1200x800"
     
-    # 専用ディレクトリの定義
+    # 専用ディレクトリの定義（AppData\Roaming を使用）
     APP_DIR_NAME = "ProMultiTabNotepad"
-    APP_DIR_PATH = os.path.join(os.path.expanduser("~"), APP_DIR_NAME)
+    APP_DIR_PATH = Path(os.getenv("APPDATA")) / APP_DIR_NAME
     
     settings = {
         "appearance": "dark",

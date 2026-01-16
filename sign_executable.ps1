@@ -18,9 +18,25 @@ param(
 Write-Host "=== Code Signing Tool ===" -ForegroundColor Cyan
 Write-Host ""
 
-# パスを絶対パスに変換
-$ExePath = Join-Path $PSScriptRoot $ExePath
-$CertPath = Join-Path $PSScriptRoot $CertPath
+# パスを絶対パスに変換（既に絶対パスの場合はそのまま、相対パスの場合は $PSScriptRoot を基準に）
+if ([System.IO.Path]::IsPathRooted($ExePath)) {
+    # 既に絶対パス
+    $ExePath = $ExePath
+} elseif (Test-Path $ExePath) {
+    # 現在のディレクトリからの相対パスとして存在する場合
+    $ExePath = Resolve-Path $ExePath
+} else {
+    # $PSScriptRoot からの相対パスとして試す
+    $ExePath = Join-Path $PSScriptRoot $ExePath
+}
+
+if ([System.IO.Path]::IsPathRooted($CertPath)) {
+    $CertPath = $CertPath
+} elseif (Test-Path $CertPath) {
+    $CertPath = Resolve-Path $CertPath
+} else {
+    $CertPath = Join-Path $PSScriptRoot $CertPath
+}
 
 # ファイルの存在確認
 if (-not (Test-Path $ExePath)) {

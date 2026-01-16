@@ -80,11 +80,56 @@ Pro Multi-Tab Notepad は、Python と CustomTkinter を使用して構築され
 - 言語: 日本語 / 英語。
 
 ## 📁 専用フォルダについて
-初回起動時に、利便性のために以下のディレクトリが自動的に作成され、デフォルトの保存先として設定されます。
 
-パス: ~/ProMultiTabNotepad (ユーザーホームディレクトリ内)
+アプリケーションのユーザーデータ（設定ファイルなど）は、以下の場所に自動的に保存されます：
 
-## Releaseにて.exeファイルを公開中・以下の手順はコマンドで実行するもの
+**パス**: `C:\Users\<ユーザー名>\AppData\Roaming\ProMultiTabNotepad`
+
+このフォルダには以下のファイルが含まれます：
+- `settings.json`: ユーザー設定
+- `settings.json.bak`: 設定のバックアップ
+- `recent_files.json`: 最近開いたファイルのリスト（最大10件）
+
+## 📦 インストール方法
+
+### インストーラー版（推奨）
+
+1. [GitHub Releases](https://github.com/yourusername/your-repo/releases) から最新の `Pro-Multi-Tab-Notepad-Installer-v*.exe` をダウンロード
+2. インストーラーを実行（管理者権限が必要です）
+3. インストール先を選択（デフォルト: `C:\Program Files\Pro-Multi-Tab-Notepad`）
+4. ファイル関連付けが自動的に設定されます（`.txt`, `.md`, `.html`, `.css`, `.py`）
+5. スタートメニューとデスクトップにショートカットが作成されます
+
+**インストーラーの特徴**：
+- ✅ ファイルのダブルクリックで Pro Multi-Tab Notepad が起動
+- ✅ スタートメニューから簡単に起動
+- ✅ デスクトップショートカット
+- ✅ アンインストーラー付属（設定の保持/削除を選択可能）
+- ✅ デジタル署名済み（発行者: EnoMi-4mg, Personal）
+
+### スタンドアロン版
+
+インストール不要で使用したい場合：
+
+1. [GitHub Releases](https://github.com/yourusername/your-repo/releases) から最新の `Pro-Multi-Tab-Notepad-v*.exe` をダウンロード
+2. 任意の場所に配置して実行
+
+**スタンドアロン版の特徴**：
+- ✅ USB メモリなどで持ち運び可能
+- ✅ インストール不要
+- ⚠️ ファイル関連付けは手動設定が必要
+
+### アンインストール方法
+
+**インストーラー版の場合**：
+
+1. Windows の「設定」→「アプリ」→「インストールされているアプリ」から「Pro Multi-Tab Notepad」を選択
+2. 「アンインストール」をクリック
+3. ユーザーデータの削除を選択：
+   - チェックあり：設定ファイルも完全に削除
+   - チェックなし：設定ファイルを保持（再インストール時に設定が復元されます）
+
+## Releaseにて.exeファイルを公開中・以下の手順は開発者向けコマンド実行手順
 
 ## 🚀 はじめかた
 
@@ -103,8 +148,56 @@ pip install -r requirements.txt
 メインスクリプトを実行します。
 
 ```bash
-python my_notepad_app.py
+python Pro-Multi-Tab-Notepad.py
 ```
+
+### 4. ローカルでのビルド（開発者向け）
+
+署名付き実行ファイルとインストーラーを作成するには：
+
+**前提条件**：
+- NSIS がインストールされていること（[公式サイト](https://nsis.sourceforge.io/)からダウンロード）
+- コード署名証明書（自己署名証明書は `.\create_certificate.ps1` で生成可能）
+
+**ビルド手順**：
+
+```powershell
+# 1. 証明書の生成（初回のみ）
+.\create_certificate.ps1
+
+# 2. 証明書の信頼ストアへの追加（初回のみ）
+.\fix_cert_trust.ps1
+
+# 3. ビルドと署名の実行
+.\build_and_sign.ps1
+```
+
+このスクリプトは以下を自動実行します：
+1. config.py からバージョン番号を抽出
+2. PyInstaller で `Pro-Multi-Tab-Notepad.exe` をビルド
+3. EXE ファイルに署名
+4. NSIS でインストーラーを生成
+5. インストーラーに署名
+
+**成果物**：
+- `dist\Pro-Multi-Tab-Notepad.exe`（署名済み実行ファイル）
+- `Pro-Multi-Tab-Notepad-Installer-v*.exe`（署名済みインストーラー）
+
+### 5. GitHub Actions での自動ビルド（開発者向け）
+
+タグをプッシュすると、GitHub Actions が自動的にビルドとリリースを実行します：
+
+```powershell
+# バージョンタグを作成してプッシュ
+git tag v1.6.3
+git push origin v1.6.3
+```
+
+**必要な GitHub Secrets**：
+- `CERT_BASE64`: 証明書の Base64 エンコード文字列
+- `CERT_PASSWORD`: 証明書のパスワード
+
+詳細は [SECURITY.md](SECURITY.md) を参照してください。
 
 ## 🛠 開発者向け情報
 このアプリは Mixin パターン を採用しており、機能ごとに独立したクラスで構成されています。

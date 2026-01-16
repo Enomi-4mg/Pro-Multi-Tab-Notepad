@@ -43,7 +43,7 @@ exe = EXE(
     a.zipfiles,
     a.datas,
     [],
-    name='my_notepad_app',
+    name='Pro-Multi-Tab-Notepad',
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,
