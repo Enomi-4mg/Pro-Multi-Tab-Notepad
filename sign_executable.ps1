@@ -12,7 +12,7 @@ param(
     [string]$CertPassword = "",
     
     [Parameter(Mandatory=$false)]
-    [string]$TimestampServer = "http://timestamp.comodoca.com/authenticode"
+    [string]$TimestampServer = "http://timestamp.digicert.com"
 )
 
 Write-Host "=== Code Signing Tool ===" -ForegroundColor Cyan
@@ -39,14 +39,28 @@ if ([System.IO.Path]::IsPathRooted($CertPath)) {
 }
 
 # ファイルの存在確認
+Write-Host "Checking files..." -ForegroundColor Gray
+Write-Host "  ExePath: $ExePath" -ForegroundColor Gray
+Write-Host "  CertPath: $CertPath" -ForegroundColor Gray
+Write-Host ""
+
 if (-not (Test-Path $ExePath)) {
     Write-Host "✗ Error: Executable not found: $ExePath" -ForegroundColor Red
+    Write-Host "Current directory: $(Get-Location)" -ForegroundColor Gray
+    Write-Host "Files in dist:" -ForegroundColor Gray
+    if (Test-Path "dist") {
+        Get-ChildItem "dist" -Filter "*.exe" | ForEach-Object { Write-Host "  - $($_.Name)" -ForegroundColor Gray }
+    } else {
+        Write-Host "  (dist folder does not exist)" -ForegroundColor Gray
+    }
+    Write-Error "Executable not found"
     exit 1
 }
 
 if (-not (Test-Path $CertPath)) {
     Write-Host "✗ Error: Certificate not found: $CertPath" -ForegroundColor Red
     Write-Host "Run create_certificate.ps1 first!" -ForegroundColor Yellow
+    Write-Error "Certificate not found"
     exit 1
 }
 
@@ -100,18 +114,23 @@ if ([string]::IsNullOrEmpty($CertPassword)) {
 
 Write-Host "Signing executable: $(Split-Path $ExePath -Leaf)" -ForegroundColor Yellow
 Write-Host "Certificate: $(Split-Path $CertPath -Leaf)" -ForegroundColor Gray
+Write-Host "Timestamp server: $TimestampServer" -ForegroundColor Gray
 Write-Host ""
 
-# 署名を実行
+# 署名を実行（RFC 3161 タイムスタンプを使用）
 $arguments = @(
     "sign",
     "/f", "`"$CertPath`"",
     "/p", $CertPassword,
-    "/t", $TimestampServer,
+    "/tr", $TimestampServer,
+    "/td", "SHA256",
     "/fd", "SHA256",
     "/v",
     "`"$ExePath`""
 )
+
+Write-Host "Executing: $signtool sign /f ""$CertPath"" /p *** /tr $TimestampServer /td SHA256 /fd SHA256 /v ""$ExePath""" -ForegroundColor Gray
+Write-Host ""
 
 try {
     $process = Start-Process -FilePath $signtool -ArgumentList $arguments -Wait -NoNewWindow -PassThru
@@ -129,9 +148,11 @@ try {
     } else {
         Write-Host ""
         Write-Host "✗ Signing failed with exit code: $($process.ExitCode)" -ForegroundColor Red
+        Write-Error "Failed to sign executable"
         exit 1
     }
 } catch {
     Write-Host "✗ Error: $($_.Exception.Message)" -ForegroundColor Red
+    Write-Error $_.Exception.Message
     exit 1
 }
