@@ -38,7 +38,8 @@ jobs:
         env:
           CERT_BASE64: ${{ secrets.CODE_SIGNING_CERT }}
         run: |
-          [System.Convert]::FromBase64String($env:CERT_BASE64) | Set-Content CodeSigningCert.pfx -AsByteStream
+          $certBytes = [System.Convert]::FromBase64String($env:CERT_BASE64)
+          [System.IO.File]::WriteAllBytes("CodeSigningCert.pfx", $certBytes)
         shell: powershell
       
       - name: Build executable with PyInstaller
