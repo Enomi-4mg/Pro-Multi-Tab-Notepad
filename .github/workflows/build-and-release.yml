@@ -54,8 +54,20 @@ jobs:
         $exePath = "dist\Pro-Multi-Tab-Notepad.exe"
         $certPassword = "${{ secrets.CERT_PASSWORD }}"
         
-        # signtool でEXEに署名
-        & "C:\Program Files (x86)\Windows Kits\10\bin\10.0.22621.0\x64\signtool.exe" sign `
+        # signtool を動的に検索
+        $signtool = Get-ChildItem "C:\Program Files (x86)\Windows Kits\10\bin" -Recurse -Filter "signtool.exe" -ErrorAction SilentlyContinue | 
+                    Where-Object { $_.FullName -match "x64" } | 
+                    Select-Object -First 1 -ExpandProperty FullName
+        
+        if (-not $signtool) {
+          Write-Error "signtool.exe not found"
+          exit 1
+        }
+        
+        Write-Host "Using signtool: $signtool"
+        
+        # EXE に署名
+        & $signtool sign `
           /f $certPath `
           /p $certPassword `
           /fd SHA256 `
@@ -78,8 +90,20 @@ jobs:
         $installerPath = "Pro-Multi-Tab-Notepad-Installer-v$appVersion.exe"
         $certPassword = "${{ secrets.CERT_PASSWORD }}"
         
-        # signtool でインストーラーに署名
-        & "C:\Program Files (x86)\Windows Kits\10\bin\10.0.22621.0\x64\signtool.exe" sign `
+        # signtool を動的に検索
+        $signtool = Get-ChildItem "C:\Program Files (x86)\Windows Kits\10\bin" -Recurse -Filter "signtool.exe" -ErrorAction SilentlyContinue | 
+                    Where-Object { $_.FullName -match "x64" } | 
+                    Select-Object -First 1 -ExpandProperty FullName
+        
+        if (-not $signtool) {
+          Write-Error "signtool.exe not found"
+          exit 1
+        }
+        
+        Write-Host "Using signtool: $signtool"
+        
+        # インストーラーに署名
+        & $signtool sign `
           /f $certPath `
           /p $certPassword `
           /fd SHA256 `
