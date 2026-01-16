@@ -8,8 +8,8 @@ param(
     [Parameter(Mandatory=$true)]
     [string]$CertPath,
     
-    [Parameter(Mandatory=$true)]
-    [string]$CertPassword,
+    [Parameter(Mandatory=$false)]
+    [string]$CertPassword = "",
     
     [Parameter(Mandatory=$false)]
     [string]$TimestampServer = "http://timestamp.digicert.com"

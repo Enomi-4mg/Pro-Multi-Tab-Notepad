@@ -67,9 +67,23 @@ jobs:
         }
       shell: pwsh
       
-    - name: Sign executable
+    - name: Verify sign script
       run: |
-        .\sign_executable.ps1 -ExePath "dist\Pro-Multi-Tab-Notepad.exe" -CertPath "CodeSigningCert.pfx" -CertPassword "${{ secrets.CERT_PASSWORD }}"
+        Write-Host "sign_executable.ps1 content (first 50 lines):" -ForegroundColor Cyan
+        Get-Content ".\sign_executable.ps1" -Head 50
+      shell: pwsh
+      
+    - name: Sign executable
+      env:
+        CERT_PASSWORD: ${{ secrets.CERT_PASSWORD }}
+      run: |
+        if (-not $env:CERT_PASSWORD) {
+          Write-Host "Warning: CERT_PASSWORD is empty" -ForegroundColor Yellow
+        }
+        Write-Host "ExePath: dist\Pro-Multi-Tab-Notepad.exe" -ForegroundColor Gray
+        Write-Host "CertPath: CodeSigningCert.pfx" -ForegroundColor Gray
+        Write-Host "CertPassword length: $($env:CERT_PASSWORD.Length)" -ForegroundColor Gray
+        .\sign_executable.ps1 -ExePath "dist\Pro-Multi-Tab-Notepad.exe" -CertPath "CodeSigningCert.pfx" -CertPassword "$env:CERT_PASSWORD"
       shell: pwsh
       
     - name: Build NSIS installer
@@ -79,10 +93,15 @@ jobs:
       shell: pwsh
       
     - name: Sign installer
+      env:
+        CERT_PASSWORD: ${{ secrets.CERT_PASSWORD }}
       run: |
         $appVersion = "${{ steps.version.outputs.APP_VERSION }}"
         $installerPath = "Pro-Multi-Tab-Notepad-Installer-v$appVersion.exe"
-        .\sign_executable.ps1 -ExePath $installerPath -CertPath "CodeSigningCert.pfx" -CertPassword "${{ secrets.CERT_PASSWORD }}"
+        Write-Host "ExePath: $installerPath"
+        Write-Host "CertPath: CodeSigningCert.pfx"
+        Write-Host "CertPassword length: $($env:CERT_PASSWORD.Length)"
+        .\sign_executable.ps1 -ExePath $installerPath -CertPath "CodeSigningCert.pfx" -CertPassword "$env:CERT_PASSWORD"
       shell: pwsh
       
     - name: Create Release
