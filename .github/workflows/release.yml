@@ -34,12 +34,70 @@ jobs:
           if (Test-Path build) { Remove-Item -Recurse -Force build }
         shell: powershell
       
+      - name: Check GitHub Secrets
+        env:
+          CERT_BASE64: ${{ secrets.CODE_SIGNING_CERT }}
+          CERT_PASSWORD: ${{ secrets.CODE_SIGNING_PASSWORD }}
+        run: |
+          Write-Host "=== GitHub Secrets Verification ===" -ForegroundColor Cyan
+          Write-Host ""
+          
+          # Check if CODE_SIGNING_CERT exists
+          if ([string]::IsNullOrEmpty($env:CERT_BASE64)) {
+            Write-Error "CODE_SIGNING_CERT secret is NOT set in GitHub repository settings!"
+            Write-Host "Please add it in: Settings -> Secrets and variables -> Actions"
+            exit 1
+          }
+          Write-Host "[OK] CODE_SIGNING_CERT found (length: $($env:CERT_BASE64.Length) chars)" -ForegroundColor Green
+          
+          # Check if CODE_SIGNING_PASSWORD exists
+          if ([string]::IsNullOrEmpty($env:CERT_PASSWORD)) {
+            Write-Error "CODE_SIGNING_PASSWORD secret is NOT set!"
+            Write-Host "Please add it in: Settings -> Secrets and variables -> Actions"
+            exit 1
+          }
+          Write-Host "[OK] CODE_SIGNING_PASSWORD found" -ForegroundColor Green
+          Write-Host ""
+        shell: powershell
+      
       - name: Decode certificate from Base64
         env:
           CERT_BASE64: ${{ secrets.CODE_SIGNING_CERT }}
         run: |
-          $certBytes = [System.Convert]::FromBase64String($env:CERT_BASE64)
-          [System.IO.File]::WriteAllBytes("CodeSigningCert.pfx", $certBytes)
+          Write-Host "Decoding certificate from Base64..."
+          try {
+            $certBytes = [System.Convert]::FromBase64String($env:CERT_BASE64)
+            [System.IO.File]::WriteAllBytes("CodeSigningCert.pfx", $certBytes)
+            $fileSize = (Get-Item CodeSigningCert.pfx).Length
+            Write-Host "[OK] Certificate decoded successfully (size: $fileSize bytes)" -ForegroundColor Green
+          } catch {
+            Write-Error "Failed to decode Base64 certificate: $($_.Exception.Message)"
+            Write-Host "The Base64 string may be corrupted. Please re-encode and update the secret."
+            exit 1
+          }
+        shell: powershell
+      
+      - name: Verify certificate file
+        env:
+          CERT_PASSWORD: ${{ secrets.CODE_SIGNING_PASSWORD }}
+        run: |
+          Write-Host "Verifying certificate with password..."
+          try {
+            $cert = New-Object System.Security.Cryptography.X509Certificates.X509Certificate2("CodeSigningCert.pfx", $env:CERT_PASSWORD)
+            Write-Host "[OK] Certificate loaded successfully!" -ForegroundColor Green
+            Write-Host "  Subject: $($cert.Subject)"
+            Write-Host "  Thumbprint: $($cert.Thumbprint)"
+            Write-Host "  Valid from: $($cert.NotBefore)"
+            Write-Host "  Valid until: $($cert.NotAfter)"
+          } catch {
+            Write-Error "Failed to load certificate: $($_.Exception.Message)"
+            Write-Host ""
+            Write-Host "Possible causes:" -ForegroundColor Yellow
+            Write-Host "  1. CODE_SIGNING_PASSWORD secret is incorrect"
+            Write-Host "  2. PFX file is corrupted during Base64 encoding/decoding"
+            Write-Host "  3. Certificate file and password do not match"
+            exit 1
+          }
         shell: powershell
       
       - name: Build executable with PyInstaller
@@ -68,15 +126,8 @@ jobs:
           }
           
           Write-Host "Signing with: $signtool"
-          $arguments = @(
-            "sign",
-            "/f", "CodeSigningCert.pfx",
-            "/p", ('"' + $env:CERT_PASSWORD + '"'),
-            "/t", "http://timestamp.sectigo.com/authenticode",
-            "/fd", "SHA256",
-            "/v", "dist\my_notepad_app.exe"
-          )
-          & $signtool @arguments
+          $password = $env:CERT_PASSWORD
+          & $signtool sign /f "CodeSigningCert.pfx" /p $password /t "http://timestamp.sectigo.com/authenticode" /fd SHA256 /v "dist\my_notepad_app.exe"
           
           if ($LASTEXITCODE -ne 0) {
             Write-Error "Failed to sign executable"
