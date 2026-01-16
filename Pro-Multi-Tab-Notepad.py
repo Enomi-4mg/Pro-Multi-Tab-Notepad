@@ -1,8 +1,11 @@
-VERSION = "1.6.0"
+import sys
+import os
+
+# Pythonパスに現在のディレクトリを追加（相対パスのインポートを解決）
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 import customtkinter as ctk
 from tkinter import messagebox
-import os
 import re
 import markdown2
 import tempfile
@@ -33,6 +36,9 @@ class MultiTabApp(ctk.CTk, TabOperationsMixin, FileOperationsMixin, SearchOperat
         self.preview_file = None 
         
         self._ensure_app_directory()
+        # 設定を読み込む（初回起動時またはバックアップから復元）
+        AppConfig.load_settings()
+        
         self.init_tab_system()
         self._setup_window()
         self._create_widgets()
@@ -43,11 +49,32 @@ class MultiTabApp(ctk.CTk, TabOperationsMixin, FileOperationsMixin, SearchOperat
         self._check_empty_state()
         self.update_ui_texts()
         
+        # 終了処理のプロトコル設定
+        self.protocol("WM_DELETE_WINDOW", self._on_closing)
+        
         # 10秒ごとの自動プレビュー更新ループ開始
         self._setup_auto_preview()
         
         self.after(2000, self.check_for_updates)
 
+    def _on_closing(self):
+        """アプリ終了時の処理：変更確認 → 設定保存 → 終了"""
+        from tkinter import messagebox
+        
+        # 変更があるタブの確認
+        unsaved_tabs = [tab for tab in self.tabs.values() if tab["editor"].is_modified]
+        if unsaved_tabs:
+            msg = f"{len(unsaved_tabs)}個のタブに未保存の変更があります。\n保存せずに終了しますか？"
+            if not messagebox.askyesno("確認", msg):
+                return
+        
+        # 設定を保存
+        AppConfig.save_settings()
+        print("設定を保存しました。アプリを終了します。")
+        
+        # アプリを終了
+        self.destroy()
+    
     def _ensure_app_directory(self):
         """ホームディレクトリに専用のフォルダを自動作成する"""
         if not os.path.exists(AppConfig.APP_DIR_PATH):
@@ -329,7 +356,7 @@ class MultiTabApp(ctk.CTk, TabOperationsMixin, FileOperationsMixin, SearchOperat
 
     def _setup_window(self):
         # タイトルにバージョンを表示
-        self.title(f"{AppConfig.APP_TITLE} - v{VERSION}")
+        self.title(f"{AppConfig.APP_TITLE} - v{AppConfig.APP_VERSION}")
         self.geometry(AppConfig.GEOMETRY)
         ctk.set_appearance_mode(AppConfig.settings["appearance"])
 
@@ -345,10 +372,10 @@ class MultiTabApp(ctk.CTk, TabOperationsMixin, FileOperationsMixin, SearchOperat
                     latest_version_str = data["tag_name"].lstrip('v')
                     
                     # デバッグ用にコンソール出力
-                    print(f"Current version: {VERSION}")
+                    print(f"Current version: {AppConfig.APP_VERSION}")
                     print(f"Latest version on GitHub: {latest_version_str}")
                     
-                    if version.parse(latest_version_str) > version.parse(VERSION):
+                    if version.parse(latest_version_str) > version.parse(AppConfig.APP_VERSION):
                         self.after(0, lambda: self._show_update_dialog(latest_version_str, data["html_url"]))
                     else:
                         print("No update available.")

@@ -3,8 +3,6 @@ from tkinter import filedialog, messagebox
 from config import AppConfig
 import os
 
-VERSION = "1.5.0"
-
 class SettingsOperationsMixin:
     def init_settings_ui(self):
         self.settings_visible = False
@@ -81,7 +79,7 @@ class SettingsOperationsMixin:
         self.back_btn.pack(side="right")
         
         self.ver_label = ctk.CTkLabel(self.settings_view, 
-                                     text=AppConfig.t("version_label", version=VERSION),
+                                     text=AppConfig.t("version_label", version=AppConfig.APP_VERSION),
                                      text_color=AppConfig.COLORS["text_secondary"])
         self.ver_label.pack(pady=10)
 
@@ -146,7 +144,7 @@ class SettingsOperationsMixin:
         self.apply_btn.configure(text=AppConfig.t("apply_btn"))
         self.back_btn.configure(text=AppConfig.t("back_btn"))
         if hasattr(self, "ver_label"):
-            self.ver_label.configure(text=AppConfig.t("version_label", version=VERSION))
+            self.ver_label.configure(text=AppConfig.t("version_label", version=AppConfig.APP_VERSION))
 
     def apply_settings(self):
         AppConfig.settings["appearance"] = self.mode_var.get()
@@ -163,6 +161,9 @@ class SettingsOperationsMixin:
             tab["editor"].toggle_line_numbers(AppConfig.settings["show_line_numbers"])
             tab["editor"].update_appearance()
             tab["editor"].highlight_current_line()
+        
+        # 設定を保存
+        AppConfig.save_settings()
         
         self.update_ui_texts()
         self.update_settings_ui_texts()

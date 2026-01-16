@@ -95,6 +95,7 @@ class I18n:
 # ==========================================
 class AppConfig:
     APP_TITLE = "Pro Multi-Tab Notepad"
+    APP_VERSION = "1.6.1"  # バージョン情報
     GEOMETRY = "1200x800"
     
     # 専用ディレクトリの定義
@@ -111,6 +112,8 @@ class AppConfig:
         "default_dir": APP_DIR_PATH, # 専用ディレクトリを初期値に設定
         "preview_interval": 5,
         "lang": "ja",
+        "last_save_dir": None,  # 最後に保存したディレクトリ
+        "recent_files": [],  # 最近開いたファイルのリスト（最大10件）
     }
     
     COLORS = {
@@ -147,6 +150,107 @@ class AppConfig:
     @classmethod
     def t(cls, key, **kwargs):
         return I18n.get(key, cls.settings["lang"], **kwargs)
+    
+    @classmethod
+    def save_settings(cls):
+        """設定をJSONファイルに保存する（既存ファイルは.bakにバックアップ）"""
+        import json
+        settings_path = os.path.join(cls.APP_DIR_PATH, "settings.json")
+        backup_path = os.path.join(cls.APP_DIR_PATH, "settings.json.bak")
+        
+        try:
+            # 既存のsettings.jsonがあればバックアップ
+            if os.path.exists(settings_path):
+                if os.path.exists(backup_path):
+                    os.remove(backup_path)
+                os.rename(settings_path, backup_path)
+            
+            # 新しい設定を保存
+            with open(settings_path, "w", encoding="utf-8") as f:
+                json.dump(cls.settings, f, indent=4, ensure_ascii=False)
+            return True
+        except Exception as e:
+            print(f"設定保存エラー: {e}")
+            return False
+    
+    @classmethod
+    def load_settings(cls):
+        """設定をJSONファイルから読み込む（失敗時は.bakから復元を試行）"""
+        import json
+        settings_path = os.path.join(cls.APP_DIR_PATH, "settings.json")
+        backup_path = os.path.join(cls.APP_DIR_PATH, "settings.json.bak")
+        
+        # デフォルト設定のコピーを保持
+        default_settings = cls.settings.copy()
+        
+        # まず通常のsettings.jsonを試行
+        if os.path.exists(settings_path):
+            try:
+                with open(settings_path, "r", encoding="utf-8") as f:
+                    loaded = json.load(f)
+                    # デフォルト値とマージ（新しい設定項目との互換性確保）
+                    cls.settings.update(loaded)
+                print("設定を読み込みました")
+                return True
+            except Exception as e:
+                print(f"設定読み込みエラー: {e}。バックアップから復元を試みます...")
+        
+        # settings.jsonが失敗した場合、バックアップから復元
+        if os.path.exists(backup_path):
+            try:
+                with open(backup_path, "r", encoding="utf-8") as f:
+                    loaded = json.load(f)
+                    cls.settings = default_settings
+                    cls.settings.update(loaded)
+                print("バックアップから設定を復元しました")
+                return True
+            except Exception as e:
+                print(f"バックアップ復元エラー: {e}。デフォルト設定を使用します")
+        
+        # 両方失敗した場合はデフォルト設定を使用
+        cls.settings = default_settings
+        print("デフォルト設定を使用します")
+        return False
+    
+    @classmethod
+    def export_settings(cls, path):
+        """設定を指定したパスにエクスポートする"""
+        import json
+        try:
+            with open(path, "w", encoding="utf-8") as f:
+                json.dump(cls.settings, f, indent=4, ensure_ascii=False)
+            return True
+        except Exception as e:
+            print(f"設定エクスポートエラー: {e}")
+            return False
+    
+    @classmethod
+    def import_settings(cls, path):
+        """設定を指定したパスからインポートする"""
+        import json
+        try:
+            with open(path, "r", encoding="utf-8") as f:
+                loaded = json.load(f)
+                # デフォルト値を保持しつつ更新
+                default_settings = {
+                    "appearance": "dark",
+                    "font_size": 14,
+                    "font_family": "Consolas",
+                    "show_line_numbers": True,
+                    "show_grid": False,
+                    "show_current_line": True,
+                    "default_dir": cls.APP_DIR_PATH,
+                    "preview_interval": 5,
+                    "lang": "ja",
+                    "last_save_dir": None,
+                    "recent_files": [],
+                }
+                default_settings.update(loaded)
+                cls.settings = default_settings
+            return True
+        except Exception as e:
+            print(f"設定インポートエラー: {e}")
+            return False
     
     GITHUB_USER = "EnoMi-4mg" # 書き換えてください
     REPO_NAME = "Pro-Multi-Tab-Notepad"
