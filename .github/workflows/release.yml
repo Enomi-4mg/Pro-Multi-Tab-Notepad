@@ -68,7 +68,15 @@ jobs:
           }
           
           Write-Host "Signing with: $signtool"
-          & $signtool sign /f CodeSigningCert.pfx /p "$env:CERT_PASSWORD" /t "http://timestamp.comodoca.com/authenticode" /fd SHA256 /v dist\my_notepad_app.exe
+          $arguments = @(
+            "sign",
+            "/f", "CodeSigningCert.pfx",
+            "/p", ('"' + $env:CERT_PASSWORD + '"'),
+            "/t", "http://timestamp.sectigo.com/authenticode",
+            "/fd", "SHA256",
+            "/v", "dist\my_notepad_app.exe"
+          )
+          & $signtool @arguments
           
           if ($LASTEXITCODE -ne 0) {
             Write-Error "Failed to sign executable"
@@ -98,8 +106,8 @@ jobs:
         run: |
           $file = Get-Item dist\my_notepad_app.exe
           $size = [math]::Round($file.Length / 1MB, 2)
-          echo "size=$size MB" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
-          echo "filename=$($file.Name)" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+          "size=$size MB" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+          "filename=$($file.Name)" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
         shell: powershell
       
       - name: Create Release
@@ -110,20 +118,20 @@ jobs:
           body: |
             ## Pro Multi-Tab Notepad ${{ github.ref_name }}
             
-            ### 📦 Downloads
-            - **Signed Executable**: `my_notepad_app.exe` (${{ steps.file-info.outputs.size }})
+            ### Downloads
+            - Signed Executable: my_notepad_app.exe (${{ steps.file-info.outputs.size }})
             
             ### Features
             - [OK] Code Signed (Self-Signed Certificate)
             - [OK] Timestamp Authority Verified
             - [OK] Ready to distribute
             
-            ### 📝 Installation
-            1. Download `my_notepad_app.exe`
+            ### Installation
+            1. Download my_notepad_app.exe
             2. Run the executable
             3. No installation required!
             
-            ### 🔒 Security
+            ### Security
             - This release is digitally signed with a self-signed certificate
             - Signature verified by Sectigo timestamp authority
             - Safe to distribute
