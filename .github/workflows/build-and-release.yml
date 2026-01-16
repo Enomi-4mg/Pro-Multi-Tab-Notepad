@@ -32,7 +32,10 @@ jobs:
       run: |
         $certBase64 = "${{ secrets.CERT_BASE64 }}"
         $certBytes = [System.Convert]::FromBase64String($certBase64)
-        [System.IO.File]::WriteAllBytes("CodeSigningCert.pfx", $certBytes)
+        $certPath = "CodeSigningCert.pfx"
+        [System.IO.File]::WriteAllBytes($certPath, $certBytes)
+        Write-Host "Certificate file created: $certPath"
+        Write-Host "File size: $((Get-Item $certPath).Length) bytes"
       shell: pwsh
       
     - name: Extract version from config.py
@@ -50,31 +53,7 @@ jobs:
       
     - name: Sign executable
       run: |
-        $certPath = "CodeSigningCert.pfx"
-        $exePath = "dist\Pro-Multi-Tab-Notepad.exe"
-        $certPassword = "${{ secrets.CERT_PASSWORD }}"
-        
-        # signtool を動的に検索
-        $signtool = Get-ChildItem "C:\Program Files (x86)\Windows Kits\10\bin" -Recurse -Filter "signtool.exe" -ErrorAction SilentlyContinue | 
-                    Where-Object { $_.FullName -match "x64" } | 
-                    Select-Object -First 1 -ExpandProperty FullName
-        
-        if (-not $signtool) {
-          Write-Error "signtool.exe not found"
-          exit 1
-        }
-        
-        Write-Host "Using signtool: $signtool"
-        
-        # EXE に署名
-        & $signtool sign `
-          /f $certPath `
-          /p $certPassword `
-          /fd SHA256 `
-          /tr http://timestamp.digicert.com `
-          /td SHA256 `
-          /v `
-          $exePath
+        .\sign_executable.ps1 -ExePath "dist\Pro-Multi-Tab-Notepad.exe" -CertPath "CodeSigningCert.pfx" -CertPassword "${{ secrets.CERT_PASSWORD }}"
       shell: pwsh
       
     - name: Build NSIS installer
@@ -85,32 +64,9 @@ jobs:
       
     - name: Sign installer
       run: |
-        $certPath = "CodeSigningCert.pfx"
         $appVersion = "${{ steps.version.outputs.APP_VERSION }}"
         $installerPath = "Pro-Multi-Tab-Notepad-Installer-v$appVersion.exe"
-        $certPassword = "${{ secrets.CERT_PASSWORD }}"
-        
-        # signtool を動的に検索
-        $signtool = Get-ChildItem "C:\Program Files (x86)\Windows Kits\10\bin" -Recurse -Filter "signtool.exe" -ErrorAction SilentlyContinue | 
-                    Where-Object { $_.FullName -match "x64" } | 
-                    Select-Object -First 1 -ExpandProperty FullName
-        
-        if (-not $signtool) {
-          Write-Error "signtool.exe not found"
-          exit 1
-        }
-        
-        Write-Host "Using signtool: $signtool"
-        
-        # インストーラーに署名
-        & $signtool sign `
-          /f $certPath `
-          /p $certPassword `
-          /fd SHA256 `
-          /tr http://timestamp.digicert.com `
-          /td SHA256 `
-          /v `
-          $installerPath
+        .\sign_executable.ps1 -ExePath $installerPath -CertPath "CodeSigningCert.pfx" -CertPassword "${{ secrets.CERT_PASSWORD }}"
       shell: pwsh
       
     - name: Create Release

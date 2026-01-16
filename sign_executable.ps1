@@ -3,7 +3,7 @@
 
 param(
     [Parameter(Mandatory=$false)]
-    [string]$ExePath = "dist\my_notepad_app.exe",
+    [string]$ExePath = "dist\Pro-Multi-Tab-Notepad.exe",
     
     [Parameter(Mandatory=$false)]
     [string]$CertPath = "CodeSigningCert.pfx",
