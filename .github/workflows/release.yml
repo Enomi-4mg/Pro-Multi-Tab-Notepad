@@ -75,7 +75,7 @@ jobs:
             exit 1
           }
           
-          Write-Host "✓ Successfully signed executable"
+          Write-Host "[OK] Successfully signed executable"
         shell: powershell
       
       - name: Verify signature
@@ -113,10 +113,10 @@ jobs:
             ### 📦 Downloads
             - **Signed Executable**: `my_notepad_app.exe` (${{ steps.file-info.outputs.size }})
             
-            ### ✨ Features
-            - ✅ Code Signed (Self-Signed Certificate)
-            - ✅ Timestamp Authority Verified
-            - ✅ Ready to distribute
+            ### Features
+            - [OK] Code Signed (Self-Signed Certificate)
+            - [OK] Timestamp Authority Verified
+            - [OK] Ready to distribute
             
             ### 📝 Installation
             1. Download `my_notepad_app.exe`
