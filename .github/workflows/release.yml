@@ -68,7 +68,7 @@ jobs:
           }
           
           Write-Host "Signing with: $signtool"
-          & $signtool sign /f CodeSigningCert.pfx /p $env:CERT_PASSWORD /t "http://timestamp.comodoca.com/authenticode" /fd SHA256 /v dist\my_notepad_app.exe
+          & $signtool sign /f CodeSigningCert.pfx /p "$env:CERT_PASSWORD" /t "http://timestamp.comodoca.com/authenticode" /fd SHA256 /v dist\my_notepad_app.exe
           
           if ($LASTEXITCODE -ne 0) {
             Write-Error "Failed to sign executable"
