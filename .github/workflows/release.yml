@@ -139,9 +139,3 @@ jobs:
             Remove-Item CodeSigningCert.pfx -Force
           }
         shell: powershell
-
-          # ここでも同じファイル名を指定します
-          files: "ProMultiTabNotepad_${{ github.ref_name }}_Win.zip"
-          generate_release_notes: true 
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
