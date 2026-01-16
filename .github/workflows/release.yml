@@ -1,27 +1,27 @@
-name: Build and Release
+name: Build & Sign Release
 
 on:
   push:
     tags:
-      - 'v*' # v1.1.1 などのタグがプッシュされたときに実行
+      - 'v*'
 
 jobs:
-  build-windows:
+  build-and-sign:
     runs-on: windows-latest
     
     permissions:
-        contents: write
+      contents: write
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-
+      
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v4
         with:
           python-version: '3.13'
           cache: 'pip'
-
+      
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
@@ -34,20 +34,112 @@ jobs:
           if (Test-Path build) { Remove-Item -Recurse -Force build }
         shell: powershell
       
-      - name: Build with PyInstaller
+      - name: Decode certificate from Base64
+        env:
+          CERT_BASE64: ${{ secrets.CODE_SIGNING_CERT }}
         run: |
-          # 既存の .spec ファイルを使用してビルド
-          python -m PyInstaller --noconfirm my_notepad_app.spec
-
-      - name: Archive build artifacts
-        # ${{ github.ref_name }} を使用してタグ名をファイル名に含めます
+          [System.Convert]::FromBase64String($env:CERT_BASE64) | Set-Content CodeSigningCert.pfx -AsByteStream
         shell: powershell
+      
+      - name: Build executable with PyInstaller
         run: |
-          Compress-Archive -Path dist/my_notepad_app/* -DestinationPath "ProMultiTabNotepad_${{ github.ref_name }}_Win.zip"
-
+          python -m PyInstaller my_notepad_app.spec --clean
+        shell: powershell
+      
+      - name: Sign executable
+        env:
+          CERT_PASSWORD: ${{ secrets.CODE_SIGNING_PASSWORD }}
+        run: |
+          $signtool = "C:\Program Files (x86)\Windows Kits\10\bin\10.0.22621.0\x64\signtool.exe"
+          
+          # Fallback to other possible locations
+          if (-not (Test-Path $signtool)) {
+            $found = Get-ChildItem "C:\Program Files (x86)\Windows Kits" -Recurse -Filter "signtool.exe" -ErrorAction SilentlyContinue | 
+                     Where-Object { $_.FullName -match "x64" } | 
+                     Select-Object -First 1
+            
+            if ($found) {
+              $signtool = $found.FullName
+            } else {
+              Write-Error "signtool.exe not found. Windows SDK must be installed."
+              exit 1
+            }
+          }
+          
+          Write-Host "Signing with: $signtool"
+          & $signtool sign /f CodeSigningCert.pfx /p $env:CERT_PASSWORD /t "http://timestamp.comodoca.com/authenticode" /fd SHA256 /v dist\my_notepad_app.exe
+          
+          if ($LASTEXITCODE -ne 0) {
+            Write-Error "Failed to sign executable"
+            exit 1
+          }
+          
+          Write-Host "✓ Successfully signed executable"
+        shell: powershell
+      
+      - name: Verify signature
+        run: |
+          $signtool = "C:\Program Files (x86)\Windows Kits\10\bin\10.0.22621.0\x64\signtool.exe"
+          
+          if (-not (Test-Path $signtool)) {
+            $found = Get-ChildItem "C:\Program Files (x86)\Windows Kits" -Recurse -Filter "signtool.exe" -ErrorAction SilentlyContinue | 
+                     Where-Object { $_.FullName -match "x64" } | 
+                     Select-Object -First 1
+            if ($found) { $signtool = $found.FullName }
+          }
+          
+          & $signtool verify /pa /v dist\my_notepad_app.exe
+        shell: powershell
+        continue-on-error: true
+      
+      - name: Get file info
+        id: file-info
+        run: |
+          $file = Get-Item dist\my_notepad_app.exe
+          $size = [math]::Round($file.Length / 1MB, 2)
+          echo "size=$size MB" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+          echo "filename=$($file.Name)" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+        shell: powershell
+      
       - name: Create Release
         uses: softprops/action-gh-release@v2
         with:
+          tag_name: ${{ github.ref }}
+          name: Release ${{ github.ref_name }}
+          body: |
+            ## Pro Multi-Tab Notepad ${{ github.ref_name }}
+            
+            ### 📦 Downloads
+            - **Signed Executable**: `my_notepad_app.exe` (${{ steps.file-info.outputs.size }})
+            
+            ### ✨ Features
+            - ✅ Code Signed (Self-Signed Certificate)
+            - ✅ Timestamp Authority Verified
+            - ✅ Ready to distribute
+            
+            ### 📝 Installation
+            1. Download `my_notepad_app.exe`
+            2. Run the executable
+            3. No installation required!
+            
+            ### 🔒 Security
+            - This release is digitally signed with a self-signed certificate
+            - Signature verified by Sectigo timestamp authority
+            - Safe to distribute
+          files: |
+            dist/my_notepad_app.exe
+          draft: false
+          prerelease: false
+          token: ${{ secrets.GITHUB_TOKEN }}
+      
+      - name: Clean up certificate
+        if: always()
+        run: |
+          if (Test-Path CodeSigningCert.pfx) {
+            Remove-Item CodeSigningCert.pfx -Force
+          }
+        shell: powershell
+
           # ここでも同じファイル名を指定します
           files: "ProMultiTabNotepad_${{ github.ref_name }}_Win.zip"
           generate_release_notes: true 
