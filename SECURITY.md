@@ -31,13 +31,13 @@
 
 ### GitHub での自動署名リリース
 
-GitHub Actions ワークフロー（`.github/workflows/release.yml`）が以下を自動実行します：
+GitHub Actions ワークフロー（`.github/workflows/build-and-release.yml`）が以下を自動実行します：
 
 1. 証明書を GitHub Secrets から Base64 デコード
 2. PyInstaller でビルド
-3. `signtool.exe` で署名
-4. 署名を検証
-5. GitHub Releases に署名済み EXE をアップロード
+3. `sign_executable.ps1` で署名
+4. NSIS インストーラーの生成と署名
+5. 署名済みファイルを GitHub Releases にアップロード
 
 #### GitHub Secrets の設定方法
 
@@ -56,6 +56,8 @@ GitHub Actions ワークフロー（`.github/workflows/release.yml`）が以下�
    git tag v1.5.0
    git push origin v1.5.0
    ```
+
+**⚠️ 重要**: シークレット名は **必ず** `CODE_SIGNING_CERT` と `CODE_SIGNING_PASSWORD` で統一してください。ワークフローはこの名前を参照しています。
 
 ## ✅ チェックリスト
 
