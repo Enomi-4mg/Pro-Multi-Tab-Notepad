@@ -114,7 +114,7 @@ class I18n:
 # ==========================================
 class AppConfig:
     APP_TITLE = "Pro Multi-Tab Notepad"
-    APP_VERSION = "1.6.1"  # バージョン情報
+    APP_VERSION = "1.6.2"  # バージョン情報
     GEOMETRY = "1200x800"
     
     # 専用ディレクトリの定義
