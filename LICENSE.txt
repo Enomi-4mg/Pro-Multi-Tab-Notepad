@@ -1,5 +1,4 @@
 # LICENSE.txt - Pro Multi-Tab Notepad
-# このファイルは NSIS インストーラーで使用されます
 
 MIT License
 
