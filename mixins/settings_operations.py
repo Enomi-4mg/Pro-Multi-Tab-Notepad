@@ -78,10 +78,24 @@ class SettingsOperationsMixin:
         self.back_btn = ctk.CTkButton(self.btn_frame, text="", command=self.show_editor_view, fg_color="transparent", border_width=1)
         self.back_btn.pack(side="right")
         
-        self.ver_label = ctk.CTkLabel(self.settings_view, 
+        # バージョンラベルとエクスポート/インポートボタンを同じ行に配置
+        self.bottom_frame = ctk.CTkFrame(self.settings_view, fg_color="transparent")
+        self.bottom_frame.pack(pady=10, padx=40, fill="x")
+        
+        # 左側：バージョンラベル
+        self.ver_label = ctk.CTkLabel(self.bottom_frame, 
                                      text=AppConfig.t("version_label", version=AppConfig.APP_VERSION),
                                      text_color=AppConfig.COLORS["text_secondary"])
-        self.ver_label.pack(pady=10)
+        self.ver_label.pack(side="left")
+        
+        # 右側：エクスポート/インポートボタン
+        self.export_btn = ctk.CTkButton(self.bottom_frame, text="", width=120, height=30,
+                                       command=self._export_settings, fg_color="transparent", border_width=1)
+        self.export_btn.pack(side="right", padx=5)
+        
+        self.import_btn = ctk.CTkButton(self.bottom_frame, text="", width=120, height=30,
+                                       command=self._import_settings, fg_color="transparent", border_width=1)
+        self.import_btn.pack(side="right", padx=5)
 
     def _create_section_label(self, key):
         lbl = ctk.CTkLabel(self.settings_view, text=AppConfig.t(key), font=(None, 16, "bold"), text_color=AppConfig.COLORS["text_secondary"])
@@ -145,6 +159,9 @@ class SettingsOperationsMixin:
         self.back_btn.configure(text=AppConfig.t("back_btn"))
         if hasattr(self, "ver_label"):
             self.ver_label.configure(text=AppConfig.t("version_label", version=AppConfig.APP_VERSION))
+        if hasattr(self, "export_btn"):
+            self.export_btn.configure(text=AppConfig.t("export_settings"))
+            self.import_btn.configure(text=AppConfig.t("import_settings"))
 
     def apply_settings(self):
         AppConfig.settings["appearance"] = self.mode_var.get()
@@ -168,3 +185,48 @@ class SettingsOperationsMixin:
         self.update_ui_texts()
         self.update_settings_ui_texts()
         messagebox.showinfo(AppConfig.t("settings_title"), AppConfig.t("settings_applied"))
+    
+    def _export_settings(self):
+        """設定をファイルにエクスポート"""
+        path = filedialog.asksaveasfilename(
+            defaultextension=".json",
+            initialfile="settings.json",
+            filetypes=[("JSON files", "*.json"), ("All files", "*.*")]
+        )
+        if path:
+            if AppConfig.export_settings(path):
+                messagebox.showinfo(AppConfig.t("settings_title"), AppConfig.t("export_success"))
+            else:
+                messagebox.showerror(AppConfig.t("settings_title"), "エクスポートに失敗しました。")
+    
+    def _import_settings(self):
+        """設定をファイルからインポート"""
+        path = filedialog.askopenfilename(
+            filetypes=[("JSON files", "*.json"), ("All files", "*.*")]
+        )
+        if path:
+            if AppConfig.import_settings(path):
+                # UIの各変数を読み込んだ設定で更新
+                self.mode_var.set(AppConfig.settings["appearance"])
+                self.size_slider.set(AppConfig.settings["font_size"])
+                self.size_label.configure(text=str(AppConfig.settings["font_size"]))
+                self.line_num_var.set(AppConfig.settings["show_line_numbers"])
+                self.grid_var.set(AppConfig.settings["show_grid"])
+                self.cur_line_var.set(AppConfig.settings["show_current_line"])
+                self.dir_path_var.set(AppConfig.settings["default_dir"])
+                self.lang_var.set(AppConfig.settings["lang"])
+                self.interval_slider.set(AppConfig.settings["preview_interval"])
+                self.interval_label.configure(text=f"{AppConfig.settings['preview_interval']}s")
+                
+                # 設定を即座に反映
+                ctk.set_appearance_mode(AppConfig.settings["appearance"])
+                for tab in self.tabs.values():
+                    tab["editor"].toggle_line_numbers(AppConfig.settings["show_line_numbers"])
+                    tab["editor"].update_appearance()
+                    tab["editor"].highlight_current_line()
+                
+                self.update_ui_texts()
+                self.update_settings_ui_texts()
+                messagebox.showinfo(AppConfig.t("settings_title"), AppConfig.t("import_success"))
+            else:
+                messagebox.showerror(AppConfig.t("import_error"), "インポートに失敗しました。")

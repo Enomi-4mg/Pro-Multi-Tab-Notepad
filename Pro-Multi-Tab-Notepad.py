@@ -49,13 +49,13 @@ class MultiTabApp(ctk.CTk, TabOperationsMixin, FileOperationsMixin, SearchOperat
         self._check_empty_state()
         self.update_ui_texts()
         
-        # 終了処理のプロトコル設定
-        self.protocol("WM_DELETE_WINDOW", self._on_closing)
-        
         # 10秒ごとの自動プレビュー更新ループ開始
         self._setup_auto_preview()
         
         self.after(2000, self.check_for_updates)
+        
+        # 終了処理のプロトコル設定（最後に設定して、初期化中の呼び出しを避ける）
+        self.protocol("WM_DELETE_WINDOW", self._on_closing)
 
     def _on_closing(self):
         """アプリ終了時の処理：変更確認 → 設定保存 → 終了"""
@@ -393,8 +393,12 @@ class MultiTabApp(ctk.CTk, TabOperationsMixin, FileOperationsMixin, SearchOperat
             webbrowser.open(download_url)
 
 if __name__ == "__main__":
-    app = MultiTabApp()
     try:
+        app = MultiTabApp()
         app.mainloop()
     except KeyboardInterrupt:
         pass
+    except Exception as e:
+        print(f"致命的なエラー: {e}")
+        import traceback
+        traceback.print_exc()
